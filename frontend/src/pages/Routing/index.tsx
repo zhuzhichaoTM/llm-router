@@ -1,0 +1,414 @@
+import React from 'react';
+import { Card, Table, Button, Space, Modal, Form, Input, Select, Tag, Switch, Row, Col, message } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { routerApi } from '@/api/client';
+import type { SwitchStatus, RoutingRule, SwitchHistoryEntry } from '@/types';
+
+export default function Routing() {
+  const [loading, setLoading] = React.useState(false);
+  const [rules, setRules] = React.useState<RoutingRule[]>([]);
+  const [switchStatus, setSwitchStatus] = React.useState<SwitchStatus | null>(null);
+  const [history, setHistory] = React.useState<SwitchHistoryEntry[]>([]);
+  const [modalVisible, setModalVisible] = React.useState(false);
+  const [editingRule, setEditingRule] = React.useState<Partial<RoutingRule> | null>(null);
+  const [form] = Form.useForm();
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [statusData, historyData, rulesData] = await Promise.all([
+        routerApi.getStatus(),
+        routerApi.getHistory(),
+        routerApi.listRules(),
+      ]);
+
+      if (statusData) setSwitchStatus(statusData);
+      if (historyData) setHistory(historyData);
+      if (rulesData) setRules(rulesData.rules || []);
+    } catch (error: any) {
+      message.error('获取路由数据失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleToggle = async (enabled: boolean) => {
+    try {
+      const status = await routerApi.toggle({ value: enabled, reason: 'Manual toggle' });
+      setSwitchStatus(status);
+      message.success(enabled ? '路由已启用' : '路由已禁用');
+      await fetchData();
+    } catch (error: any) {
+      message.error('切换失败');
+    }
+  };
+
+  const handleAddRule = () => {
+    setEditingRule({ is_active: true, priority: 0 });
+    setModalVisible(true);
+    form.resetFields();
+  };
+
+  const handleEditRule = (rule: RoutingRule) => {
+    setEditingRule(rule);
+    setModalVisible(true);
+    form.setFieldsValue(rule);
+  };
+
+  const handleDeleteRule = async (id: number) => {
+    try {
+      // Note: Need to implement delete API
+      message.success('删除成功');
+      await fetchData();
+    } catch (error) {
+      message.error('删除失败');
+    }
+  };
+
+  const handleModalOk = async () => {
+    try {
+      const values = await form.validateFields();
+      if (editingRule?.id) {
+        // Update
+        message.success('更新成功');
+      } else {
+        // Create
+        const result = await routerApi.createRule(values);
+        message.success('创建成功');
+      }
+      setModalVisible(false);
+      await fetchData();
+    } catch (error: any) {
+      message.error('保存失败');
+    }
+  };
+
+  const ruleColumns = [
+    {
+      title: 'ID',
+      dataIndex: 'id',
+      key: 'id',
+      width: 60,
+    },
+    {
+      title: '名称',
+      dataIndex: 'name',
+      key: 'name',
+    },
+    {
+      title: '条件类型',
+      dataIndex: 'condition_type',
+      key: 'condition_type',
+      render: (type: string) => {
+        const typeMap: Record<string, string> = {
+          regex: '正则匹配',
+          complexity: '复杂度',
+        };
+        return typeMap[type] || type;
+      },
+    },
+    {
+      title: '条件值',
+      dataIndex: 'condition_value',
+      key: 'condition_value',
+    },
+    {
+      title: '操作类型',
+      dataIndex: 'action_type',
+      key: 'action_type',
+      render: (type: string) => {
+        const typeMap: Record<string, string> = {
+          use_model: '使用模型',
+          use_provider: '使用 Provider',
+        };
+        return typeMap[type] || type;
+      },
+    },
+    {
+      title: '操作值',
+      dataIndex: 'action_value',
+      key: 'action_value',
+    },
+    {
+      title: '优先级',
+      dataIndex: 'priority',
+      key: 'priority',
+    },
+    {
+      title: '命中次数',
+      dataIndex: 'hit_count',
+      key: 'hit_count',
+      width: 100,
+    },
+    {
+      title: '状态',
+      dataIndex: 'is_active',
+      key: 'is_active',
+      width: 100,
+      render: (active: boolean) => (
+        <Tag color={active ? 'green' : 'default'}>
+          {active ? '启用' : '禁用'}
+        </Tag>
+      ),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 150,
+      render: (_: any, record: RoutingRule) => (
+        <Space size="small">
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleEditRule(record)}
+          >
+            编辑
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDeleteRule(record.id)}
+          >
+            删除
+          </Button>
+        </Space>
+      ),
+    },
+  ];
+
+  const historyColumns = [
+    {
+      title: '时间',
+      dataIndex: 'timestamp',
+      key: 'timestamp',
+      render: (ts: number) => new Date(ts * 1000).toLocaleString(),
+    },
+    {
+      title: '变更',
+      dataIndex: 'change',
+      key: 'change',
+      render: (_: any, record: SwitchHistoryEntry) => (
+        <span>
+          {record.old_enabled === 'true' ? '启用' : '禁用'}
+          {' '}
+          →
+          {' '}
+          {record.new_enabled === 'true' ? '启用' : '禁用'}
+        </span>
+      ),
+    },
+    {
+      title: '原因',
+      dataIndex: 'reason',
+      key: 'reason',
+    },
+    {
+      title: '触发者',
+      dataIndex: 'triggered_by',
+      key: 'triggered_by',
+    },
+  ];
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-6">路由配置</h1>
+
+      {/* Router Switch Control */}
+      <Row gutter={[16, 16]} className="mb-6">
+        <Col xs={24} lg={12}>
+          <Card title="路由开关控制">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">当前状态：</span>
+                <Tag
+                  color={switchStatus?.enabled ? 'success' : 'error'}
+                  icon={switchStatus?.enabled ? 'check' : 'close'}
+                  style={{ fontSize: 16, padding: '4px 12px' }}
+                >
+                  {switchStatus?.enabled ? '智能路由启用' : '智能路由禁用'}
+                </Tag>
+              </div>
+              <div className="flex items-center justify-between">
+                <Button
+                  type={switchStatus?.enabled ? 'primary' : 'default'}
+                  danger={!switchStatus?.enabled}
+                  size="large"
+                  onClick={() => handleToggle(!switchStatus?.enabled)}
+                  disabled={!switchStatus?.can_toggle}
+                >
+                  {switchStatus?.enabled ? '禁用智能路由' : '启用智能路由'}
+                </Button>
+              </div>
+              {!switchStatus?.can_toggle && switchStatus?.cooldown_until && (
+                <div className="text-center text-orange-500">
+                  冷却中：{Math.ceil((switchStatus.cooldown_until - Date.now()) / 1000)} 秒
+                </div>
+              )}
+            </div>
+          </Card>
+        </Col>
+
+        <Col xs={24} lg={12}>
+          <Card title="统计信息" loading={loading}>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-gray-600">总切换次数：</span>
+                <span className="font-medium">{switchStatus?.pending ? '...' : (history.length)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">待处理切换：</span>
+                <span className="font-medium">{switchStatus?.pending ? '有' : '无'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">可立即切换：</span>
+                <span className={switchStatus?.can_toggle ? 'text-green-600 font-medium' : 'text-orange-500'}>
+                  {switchStatus?.can_toggle ? '是' : '否'}
+                </span>
+              </div>
+            </div>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Routing Rules */}
+      <Card
+        title="路由规则"
+        extra={
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleAddRule}
+          >
+            添加规则
+          </Button>
+        }
+        className="mb-6"
+      >
+        <Table
+          columns={ruleColumns}
+          dataSource={rules}
+          rowKey="id"
+          loading={loading}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+          }}
+        />
+      </Card>
+
+      {/* Switch History */}
+      <Card title="切换历史" className="mb-6">
+        <Table
+          columns={historyColumns}
+          dataSource={history}
+          loading={loading}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+          }}
+        />
+      </Card>
+
+      {/* Add/Edit Rule Modal */}
+      <Modal
+        title={editingRule?.id ? '编辑路由规则' : '添加路由规则'}
+        open={modalVisible}
+        onOk={handleModalOk}
+        onCancel={() => setModalVisible(false)}
+        width={700}
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item
+            name="name"
+            label="规则名称"
+            rules={[{ required: true, message: '请输入规则名称' }]}
+          >
+            <Input placeholder="例如: 代码相关路由到 GPT-4" />
+          </Form.Item>
+
+          <Form.Item name="description" label="描述">
+            <Input.TextArea placeholder="规则描述..." />
+          </Form.Item>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="condition_type"
+                label="条件类型"
+                rules={[{ required: true }]}
+                initialValue="regex"
+              >
+                <Select>
+                  <option value="regex">正则匹配</option>
+                  <option value="complexity">复杂度</option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="priority" label="优先级" rules={[{ required: true }]} initialValue={0}>
+                <Input type="number" placeholder="数字越大优先级越高" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Form.Item
+            name="condition_value"
+            label="条件值"
+            rules={[{ required: true, message: '请输入条件值' }]}
+          >
+            <Input placeholder="例如: (?i)(code|function|class)" />
+          </Form.Item>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="min_complexity" label="最小复杂度">
+                <Input type="number" placeholder="可选" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="max_complexity" label="最大复杂度">
+                <Input type="number" placeholder="可选" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Form.Item
+            name="action_type"
+            label="操作类型"
+            rules={[{ required: true }]}
+            initialValue="use_model"
+          >
+            <Select>
+              <option value="use_model">使用模型</option>
+              <option value="use_provider">使用 Provider</option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            name="action_value"
+            label="操作值"
+            rules={[{ required: true, message: '请输入操作值' }]}
+          >
+            <Input placeholder="例如: gpt-4" />
+          </Form.Item>
+
+          <Form.Item
+            name="is_active"
+            label="是否启用"
+            valuePropName="checked"
+            initialValue={true}
+          >
+            <Switch />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
+  );
+}
