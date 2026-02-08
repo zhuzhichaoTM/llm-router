@@ -189,3 +189,56 @@ export interface PaginatedResponse<T> {
   page: number;
   page_size: number;
 }
+
+// Analytics
+export interface AnalyticsMetric {
+  metric_name: string;
+  metric_value: number;
+  timestamp: string;
+  tags?: Record<string, any>;
+}
+
+export interface PerformanceMetrics {
+  avgResponseTime: number;
+  p95ResponseTime: number;
+  p99ResponseTime: number;
+  errorRate: number;
+  qps: number;
+  totalRequests: number;
+}
+
+export interface ErrorLog {
+  id: string;
+  request_id: string;
+  error_code: string;
+  error_message: string;
+  error_type: string;
+  provider_id?: string;
+  model?: string;
+  user_id?: string;
+  timestamp: string;
+}
+
+export interface ErrorSummary {
+  total: number;
+  byType: Record<string, number>;
+}
+
+export interface UserBehavior {
+  id: string;
+  user_id: string;
+  event_type: string;
+  event_data: Record<string, any>;
+  session_id?: string;
+  client_info?: Record<string, any>;
+  timestamp: string;
+}
+
+export interface AlertRule {
+  id: string;
+  rule_name: string;
+  severity: 'critical' | 'warning' | 'info';
+  description: string;
+  is_active: boolean;
+  triggered_at?: string;
+}

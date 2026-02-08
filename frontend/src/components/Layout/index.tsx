@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import {
   MenuFoldOutlined,
@@ -10,12 +10,12 @@ import {
   ThunderboltOutlined,
   FileTextOutlined,
   KeyOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons';
-import { Layout, Menu, Button, theme, Typography } from 'antd';
+import { Layout, Menu, Button, Typography } from 'antd';
 import type { MenuProps } from 'antd';
-import { LayoutProvider, useLayout } from './Layout';
-const { Sider, Content, Header } = Layout;
 const { Title } = Typography;
+
 const menuItems: MenuProps['items'] = [
   {
     key: '/dashboard',
@@ -43,6 +43,11 @@ const menuItems: MenuProps['items'] = [
     label: <Link to="/monitor">监控面板</Link>,
   },
   {
+    key: '/analytics',
+    icon: <BarChartOutlined />,
+    label: <Link to="/analytics">数据分析</Link>,
+  },
+  {
     type: 'divider',
   },
   {
@@ -56,26 +61,58 @@ const menuItems: MenuProps['items'] = [
     label: <Link to="/quick-start">快速开始</Link>,
   },
 ];
+
+const siderStyle: React.CSSProperties = {
+  overflow: 'auto',
+  height: '100vh',
+  position: 'fixed',
+  left: 0,
+  top: 0,
+  bottom: 0,
+};
+
+const headerStyle: React.CSSProperties = {
+  background: '#fff',
+  padding: '0 24px',
+  display: 'flex',
+  alignItems: 'center',
+};
+
+const contentStyle: React.CSSProperties = {
+  margin: '24px 16px',
+  padding: 24,
+  minHeight: 280,
+  background: '#fff',
+  borderRadius: '4px',
+};
+
+const logoStyle: React.CSSProperties = {
+  height: 64,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderBottom: '1px solid #f0f0f0',
+};
+
 export default function LayoutComponent() {
   const location = useLocation();
-  const { collapsed, setCollapsed } = useLayout();
-  const {
-    token: { colorBgContainer, colorBgLayout },
-  } = theme.useToken();
+  const [collapsed, setCollapsed] = useState(false);
+
   const getSelectedKey = () => {
     return [location.pathname];
   };
+
   return (
-    <Layout className="min-h-screen">
-      <Sider
+    <Layout style={{ minHeight: '100vh', display: 'flex', flexDirection: 'row' }}>
+      <Layout.Sider
+        style={siderStyle}
         trigger={null}
         collapsible
         collapsed={collapsed}
         onCollapse={(value) => setCollapsed(value)}
-        className="shadow-lg"
       >
-        <div className="h-16 flex items-center justify-center border-b border-gray-200">
-          <Title level={4} className="!m-0 text-primary">
+        <div style={logoStyle}>
+          <Title level={4} style={{ margin: 0, color: '#fff' }}>
             LLM Router
           </Title>
         </div>
@@ -84,26 +121,19 @@ export default function LayoutComponent() {
           mode="inline"
           selectedKeys={getSelectedKey()}
           items={menuItems}
-          className="border-r-0"
         />
-      </Sider>
-      <Layout>
-        <Header className="bg-white shadow-sm px-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              type="text"
-              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-              onClick={() => setCollapsed(!collapsed)}
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-500">API Key:</span>
-            <KeyOutlined className="text-gray-400" />
-          </div>
-        </Header>
-        <Content className="bg-gray-50 p-6 overflow-auto">
+      </Layout.Sider>
+      <Layout style={{ display: 'flex', flexDirection: 'column', flex: 1, marginLeft: collapsed ? 80 : 200 }}>
+        <Layout.Header style={headerStyle}>
+          <Button
+            type="text"
+            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            onClick={() => setCollapsed(!collapsed)}
+          />
+        </Layout.Header>
+        <Layout.Content style={contentStyle}>
           <Outlet />
-        </Content>
+        </Layout.Content>
       </Layout>
     </Layout>
   );

@@ -1,8 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Statistic, Table, Tag, Progress } from 'antd';
+import { Card, Row, Col, Statistic, Table, Tag, Progress, Button, Typography } from 'antd';
 import { ReloadOutlined, ArrowUpOutlined, ArrowDownOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
-import { chatApi, routerApi } from '@/api/client';
+import { chatApi, routerApi, costApi } from '@/api/client';
 import type { DailyCost, RouterMetrics } from '@/types';
+import CostChart from '@/components/CostChart';
+
+const { Title } = Typography;
+
+const pageStyle: React.CSSProperties = {
+  padding: '24px',
+};
+
+const cardStyle: React.CSSProperties = {
+  marginBottom: '24px',
+};
+
+const chartStyle: React.CSSProperties = {
+  height: '200px',
+};
+
+const emptyStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  height: '100%',
+  color: '#999',
+};
+
+const rowStyle: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  marginBottom: '8px',
+};
 
 export default function Monitor() {
   const [loading, setLoading] = useState(false);
@@ -34,10 +63,10 @@ export default function Monitor() {
   }, []);
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">监控面板</h1>
+    <div style={pageStyle}>
+      <Title level={2}>监控面板</Title>
 
-      <Row gutter={[16, 16]} className="mb-6">
+      <Row gutter={[16, 16]} style={cardStyle}>
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
@@ -53,7 +82,7 @@ export default function Monitor() {
           <Card>
             <Statistic
               title="今日请求"
-              value={loading ? '---' : recentRequests.length}
+              value={loading ? 0 : recentRequests.length}
             />
           </Card>
         </Col>
@@ -61,7 +90,7 @@ export default function Monitor() {
           <Card>
             <Statistic
               title="成功请求"
-              value={loading ? '---' : (recentRequests.filter((r: any) => !r.error).length)}
+              value={loading ? 0 : (recentRequests.filter((r: any) => !r.error).length)}
               valueStyle={{ color: '#52c41a' }}
             />
           </Card>
@@ -70,24 +99,24 @@ export default function Monitor() {
           <Card>
             <Statistic
               title="失败请求"
-              value={loading ? '---' : (recentRequests.filter((r: any) => r.error).length)}
+              value={loading ? 0 : (recentRequests.filter((r: any) => r.error).length)}
               valueStyle={{ color: '#ff4d4f' }}
             />
           </Card>
         </Col>
       </Row>
 
-      <Row gutter={[16, 16]} className="mb-6">
+      <Row gutter={[16, 16]} style={cardStyle}>
         <Col xs={24} lg={12}>
           <Card
             title="请求统计"
             extra={<Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>刷新</Button>}
           >
-            <div className="space-y-4">
+            <div>
               <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-600">成功率</span>
-                  <span className="font-medium text-green-600">
+                <div style={rowStyle}>
+                  <span style={{ color: '#999' }}>成功率</span>
+                  <span style={{ color: '#52c41a', fontWeight: 500 }}>
                     {recentRequests.length > 0
                       ? `${((recentRequests.filter((r: any) => !r.error).length / recentRequests.length) * 100).toFixed(1)}%`
                       : '---'}
@@ -101,9 +130,9 @@ export default function Monitor() {
                 />
               </div>
               <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-600">平均延迟</span>
-                  <span className="font-medium">
+                <div style={rowStyle}>
+                  <span style={{ color: '#999' }}>平均延迟</span>
+                  <span style={{ fontWeight: 500 }}>
                     {metrics?.recent_history?.[0]?.latency_ms ? `${metrics.recent_history[0].latency_ms}ms` : '---'}
                   </span>
                 </div>
@@ -114,16 +143,23 @@ export default function Monitor() {
 
         <Col xs={24} lg={12}>
           <Card title="Token 使用量（近7天）">
-            <div className="h-48">
-              <div className="flex items-center justify-center h-full text-gray-400">
-                图表组件待实现
-              </div>
+            <div style={chartStyle}>
+              {dailyCost.length > 0 ? (
+                <CostChart
+                  dailyData={dailyCost}
+                  modelData={[]}
+                  todayCost={0}
+                  loading={false}
+                />
+              ) : (
+                <div style={emptyStyle}>暂无数据</div>
+              )}
             </div>
           </Card>
         </Col>
       </Row>
 
-      <Card title="最近请求记录" className="mb-6">
+      <Card title="最近请求记录" style={cardStyle}>
         <Table
           columns={[
             {

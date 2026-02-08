@@ -1,8 +1,25 @@
 import React from 'react';
-import { Card, Table, Button, Space, Modal, Form, Input, Select, Tag, Switch, Row, Col, message } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Card, Table, Button, Space, Modal, Form, Input, Select, Tag, Switch, Row, Col, message, Typography } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, PoweroffOutlined } from '@ant-design/icons';
 import { routerApi } from '@/api/client';
 import type { SwitchStatus, RoutingRule, SwitchHistoryEntry } from '@/types';
+
+const { Title } = Typography;
+
+const pageStyle: React.CSSProperties = {
+  padding: '24px',
+};
+
+const rowStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  marginBottom: '16px',
+};
+
+const cardStyle: React.CSSProperties = {
+  marginBottom: '24px',
+};
 
 export default function Routing() {
   const [loading, setLoading] = React.useState(false);
@@ -217,65 +234,37 @@ export default function Routing() {
   ];
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">路由配置</h1>
+    <div style={pageStyle}>
+      <Title level={2}>路由配置</Title>
 
       {/* Router Switch Control */}
-      <Row gutter={[16, 16]} className="mb-6">
-        <Col xs={24} lg={12}>
-          <Card title="路由开关控制">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">当前状态：</span>
-                <Tag
-                  color={switchStatus?.enabled ? 'success' : 'error'}
-                  icon={switchStatus?.enabled ? 'check' : 'close'}
-                  style={{ fontSize: 16, padding: '4px 12px' }}
-                >
-                  {switchStatus?.enabled ? '智能路由启用' : '智能路由禁用'}
-                </Tag>
-              </div>
-              <div className="flex items-center justify-between">
-                <Button
-                  type={switchStatus?.enabled ? 'primary' : 'default'}
-                  danger={!switchStatus?.enabled}
-                  size="large"
-                  onClick={() => handleToggle(!switchStatus?.enabled)}
-                  disabled={!switchStatus?.can_toggle}
-                >
-                  {switchStatus?.enabled ? '禁用智能路由' : '启用智能路由'}
-                </Button>
-              </div>
-              {!switchStatus?.can_toggle && switchStatus?.cooldown_until && (
-                <div className="text-center text-orange-500">
-                  冷却中：{Math.ceil((switchStatus.cooldown_until - Date.now()) / 1000)} 秒
-                </div>
-              )}
-            </div>
-          </Card>
-        </Col>
+      <Card title="路由开关控制" style={cardStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+          {/* 状态标签 */}
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, color: '#8c8c8c', marginBottom: 6 }}>当前状态</div>
+            <Tag
+              color={switchStatus?.enabled ? 'success' : 'error'}
+              icon={switchStatus?.enabled ? <CheckCircleOutlined /> : <PoweroffOutlined />}
+              style={{ fontSize: 14, padding: '5px 14px', fontWeight: 500 }}
+            >
+              {switchStatus?.enabled ? '运行中' : '已停止'}
+            </Tag>
+          </div>
 
-        <Col xs={24} lg={12}>
-          <Card title="统计信息" loading={loading}>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-gray-600">总切换次数：</span>
-                <span className="font-medium">{switchStatus?.pending ? '...' : (history.length)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">待处理切换：</span>
-                <span className="font-medium">{switchStatus?.pending ? '有' : '无'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">可立即切换：</span>
-                <span className={switchStatus?.can_toggle ? 'text-green-600 font-medium' : 'text-orange-500'}>
-                  {switchStatus?.can_toggle ? '是' : '否'}
-                </span>
-              </div>
-            </div>
-          </Card>
-        </Col>
-      </Row>
+          {/* 控制按钮 */}
+          <Button
+            type={switchStatus?.enabled ? 'default' : 'primary'}
+            danger={switchStatus?.enabled}
+            size="large"
+            onClick={() => handleToggle(!switchStatus?.enabled)}
+            disabled={!switchStatus?.can_toggle}
+            style={{ minWidth: 140, height: 38, fontSize: 14, fontWeight: 500 }}
+          >
+            {switchStatus?.enabled ? '禁用智能路由' : '启用智能路由'}
+          </Button>
+        </div>
+      </Card>
 
       {/* Routing Rules */}
       <Card
@@ -289,7 +278,7 @@ export default function Routing() {
             添加规则
           </Button>
         }
-        className="mb-6"
+        style={cardStyle}
       >
         <Table
           columns={ruleColumns}
@@ -304,7 +293,7 @@ export default function Routing() {
       </Card>
 
       {/* Switch History */}
-      <Card title="切换历史" className="mb-6">
+      <Card title="切换历史" style={cardStyle}>
         <Table
           columns={historyColumns}
           dataSource={history}

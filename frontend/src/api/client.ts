@@ -1,7 +1,7 @@
 /**
  * API client for LLM Router backend
  */
-import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosError, AxiosResponse } from 'axios';
 import type {
   ApiResponse,
   ChatCompletionRequest,
@@ -19,6 +19,10 @@ import type {
   Provider,
   ProviderModel,
   ProviderHealth,
+  PerformanceMetrics,
+  ErrorLog,
+  ErrorSummary,
+  AlertRule,
 } from '@/types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -88,7 +92,7 @@ export const getAdminApiKey = () => {
 // Chat API
 export const chatApi = {
   completions: async (request: ChatCompletionRequest) => {
-    const response = await apiClient.post<ApiResponse<ChatCompletionResponse>>(
+    const response = await apiClient.post<ChatCompletionResponse>(
       '/api/v1/chat/completions',
       request
     );
@@ -96,7 +100,7 @@ export const chatApi = {
   },
 
   listModels: async () => {
-    const response = await apiClient.get<ApiResponse<ModelInfo[]>>(
+    const response = await apiClient.get<ModelInfo[]>(
       '/api/v1/chat/models'
     );
     return response.data;
@@ -106,14 +110,14 @@ export const chatApi = {
 // Router API
 export const routerApi = {
   getStatus: async () => {
-    const response = await apiClient.get<ApiResponse<SwitchStatus>>(
+    const response = await apiClient.get<SwitchStatus>(
       '/api/v1/router/status'
     );
     return response.data;
   },
 
   toggle: async (request: ToggleRequest) => {
-    const response = await apiClient.post<ApiResponse<SwitchStatus>>(
+    const response = await apiClient.post<SwitchStatus>(
       '/api/v1/router/toggle',
       request,
       {
@@ -126,28 +130,28 @@ export const routerApi = {
   },
 
   getHistory: async (limit: number = 100) => {
-    const response = await apiClient.get<ApiResponse<SwitchHistoryEntry[]>>(
+    const response = await apiClient.get<SwitchHistoryEntry[]>(
       `/api/v1/router/history?limit=${limit}`
     );
     return response.data;
   },
 
   getMetrics: async () => {
-    const response = await apiClient.get<ApiResponse<RouterMetrics>>(
+    const response = await apiClient.get<RouterMetrics>(
       '/api/v1/router/metrics'
     );
     return response.data;
   },
 
   listRules: async () => {
-    const response = await apiClient.get<ApiResponse<{ rules: RoutingRule[]; total: number }>>(
+    const response = await apiClient.get<{ rules: RoutingRule[]; total: number }>(
       '/api/v1/router/rules'
     );
     return response.data;
   },
 
   createRule: async (rule: Partial<RoutingRule>) => {
-    const response = await apiClient.post<ApiResponse<RoutingRule>>(
+    const response = await apiClient.post<RoutingRule>(
       '/api/v1/router/rules',
       rule,
       {
@@ -163,15 +167,15 @@ export const routerApi = {
 // Cost API
 export const costApi = {
   getCurrent: async () => {
-    const response = await apiClient.get<ApiResponse<{
+    const response = await apiClient.get<{
       daily: { cost: number; tokens: number };
       total: number;
-    }>>('/api/v1/cost/current');
+    }>('/api/v1/cost/current');
     return response.data;
   },
 
   getDaily: async (days: number = 7) => {
-    const response = await apiClient.get<ApiResponse<DailyCost[]>>(
+    const response = await apiClient.get<DailyCost[]>(
       `/api/v1/cost/daily?days=${days}`
     );
     return response.data;
@@ -182,21 +186,21 @@ export const costApi = {
     if (startDate) params.append('start_date', startDate);
     if (endDate) params.append('end_date', endDate);
 
-    const response = await apiClient.get<ApiResponse<CostSummary>>(
+    const response = await apiClient.get<CostSummary>(
       `/api/v1/cost/summary?${params.toString()}`
     );
     return response.data;
   },
 
   getByModel: async (limit: number = 20) => {
-    const response = await apiClient.get<ApiResponse<{ models: ModelCost[] }>>(
+    const response = await apiClient.get<{ models: ModelCost[] }>(
       `/api/v1/cost/by-model?limit=${limit}`
     );
     return response.data;
   },
 
   getByUser: async (limit: number = 20) => {
-    const response = await apiClient.get<ApiResponse<{ users: UserCost[] }>>(
+    const response = await apiClient.get<{ users: UserCost[] }>(
       `/api/v1/cost/by-user?limit=${limit}`
     );
     return response.data;
@@ -206,14 +210,14 @@ export const costApi = {
 // Provider API
 export const providerApi = {
   list: async () => {
-    const response = await apiClient.get<ApiResponse<Provider[]>>(
+    const response = await apiClient.get<Provider[]>(
       '/api/v1/providers'
     );
     return response.data;
   },
 
   create: async (provider: Partial<Provider>) => {
-    const response = await apiClient.post<ApiResponse<Provider>>(
+    const response = await apiClient.post<Provider>(
       '/api/v1/providers',
       provider,
       {
@@ -226,14 +230,14 @@ export const providerApi = {
   },
 
   get: async (id: number) => {
-    const response = await apiClient.get<ApiResponse<Provider>>(
+    const response = await apiClient.get<Provider>(
       `/api/v1/providers/${id}`
     );
     return response.data;
   },
 
   healthCheck: async (id: number) => {
-    const response = await apiClient.post<ApiResponse<{ healthy: boolean; providers: ProviderHealth[] }>>(
+    const response = await apiClient.post<{ healthy: boolean; providers: ProviderHealth[] }>(
       `/api/v1/providers/${id}/health`,
       {},
       {
@@ -246,14 +250,14 @@ export const providerApi = {
   },
 
   listModels: async (id: number) => {
-    const response = await apiClient.get<ApiResponse<ProviderModel[]>>(
+    const response = await apiClient.get<ProviderModel[]>(
       `/api/v1/providers/${id}/models`
     );
     return response.data;
   },
 
   createModel: async (id: number, model: Partial<ProviderModel>) => {
-    const response = await apiClient.post<ApiResponse<ProviderModel>>(
+    const response = await apiClient.post<ProviderModel>(
       `/api/v1/providers/${id}/models`,
       model,
       {
@@ -261,6 +265,88 @@ export const providerApi = {
           'Authorization': `Bearer ${getAdminApiKey()}`,
         },
       }
+    );
+    return response.data;
+  },
+
+  update: async (id: number, provider: Partial<Provider>) => {
+    const response = await apiClient.put<Provider>(
+      `/api/v1/providers/${id}`,
+      provider,
+      {
+        headers: {
+          'Authorization': `Bearer ${getAdminApiKey()}`,
+        },
+      }
+    );
+    return response.data;
+  },
+
+  delete: async (id: number) => {
+    const response = await apiClient.delete<void>(
+      `/api/v1/providers/${id}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${getAdminApiKey()}`,
+        },
+      }
+    );
+    return response.data;
+  },
+};
+
+// Analytics API
+export const analyticsApi = {
+  getPerformanceMetrics: async (params: { start_date: string; end_date: string }) => {
+    const response = await apiClient.get<PerformanceMetrics>(
+      `/api/v1/analytics/performance?start_date=${params.start_date}&end_date=${params.end_date}`
+    );
+    return response.data;
+  },
+
+  getErrorLogs: async (params: { start_date: string; end_date: string; limit?: number }) => {
+    const queryParams = new URLSearchParams({
+      start_date: params.start_date,
+      end_date: params.end_date,
+    });
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    const response = await apiClient.get<ErrorLog[]>(
+      `/api/v1/analytics/errors?${queryParams.toString()}`
+    );
+    return response.data;
+  },
+
+  getErrorSummary: async (params: { start_date: string; end_date: string }) => {
+    const response = await apiClient.get<ErrorSummary>(
+      `/api/v1/analytics/errors/summary?start_date=${params.start_date}&end_date=${params.end_date}`
+    );
+    return response.data;
+  },
+
+  getModelAnalytics: async (params: { start_date: string; end_date: string }) => {
+    const response = await apiClient.get<any[]>(
+      `/api/v1/analytics/models?start_date=${params.start_date}&end_date=${params.end_date}`
+    );
+    return response.data;
+  },
+
+  getUserAnalytics: async (params: { start_date: string; end_date: string }) => {
+    const response = await apiClient.get<any>(
+      `/api/v1/analytics/users?start_date=${params.start_date}&end_date=${params.end_date}`
+    );
+    return response.data;
+  },
+
+  getCostAnalytics: async (params: { start_date: string; end_date: string }) => {
+    const response = await apiClient.get<any>(
+      `/api/v1/analytics/cost?start_date=${params.start_date}&end_date=${params.end_date}`
+    );
+    return response.data;
+  },
+
+  getAlerts: async () => {
+    const response = await apiClient.get<AlertRule[]>(
+      '/api/v1/analytics/alerts'
     );
     return response.data;
   },

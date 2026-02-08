@@ -1,8 +1,75 @@
 import React, { useState } from 'react';
 import { Input, Button, Form, Modal, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import type { ChatCompletionRequest, Message } from '@/types';
-import { chatApi, setApiKey } from '@/api/client';
+import type { ChatCompletionRequest } from '@/types';
+import { chatApi } from '@/api/client';
+
+const messageItemStyle: React.CSSProperties = {
+  marginBottom: '8px',
+  padding: '8px',
+  border: '1px solid #d9d9d9',
+  borderRadius: '4px',
+};
+
+const roleLabelStyle: React.CSSProperties = {
+  color: '#8c8c8c',
+  fontSize: '12px',
+};
+
+const contentStyle: React.CSSProperties = {
+  color: '#434343',
+};
+
+const headingStyle: React.CSSProperties = {
+  fontWeight: 500,
+  marginBottom: '8px',
+};
+
+const preStyle: React.CSSProperties = {
+  background: '#f5f5f5',
+  padding: '16px',
+  borderRadius: '4px',
+  fontSize: '12px',
+  overflow: 'auto',
+  maxHeight: '256px',
+};
+
+const historyContainerStyle: React.CSSProperties = {
+  maxHeight: '192px',
+  overflowY: 'auto',
+  border: '1px solid #d9d9d9',
+  borderRadius: '4px',
+};
+
+const historyItemStyle: React.CSSProperties = {
+  padding: '12px',
+  borderBottom: '1px solid #f0f0f0',
+  cursor: 'pointer',
+};
+
+const historyItemHoverStyle: React.CSSProperties = {
+  ...historyItemStyle,
+  background: '#fafafa',
+};
+
+const flexBetweenStyle: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+};
+
+const timeStyle: React.CSSProperties = {
+  fontSize: '12px',
+  color: '#8c8c8c',
+};
+
+const modelTagStyle: React.CSSProperties = {
+  fontSize: '11px',
+  background: '#e6f7ff',
+  color: '#1890ff',
+  padding: '2px 8px',
+  borderRadius: '4px',
+};
 
 export default function ChatTestTool() {
   const [visible, setVisible] = useState(false);
@@ -82,7 +149,7 @@ export default function ChatTestTool() {
           </Button>,
         ]}
       >
-        <div className="space-y-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
             <Form layout="vertical">
               <Form.Item label="模型">
@@ -93,8 +160,8 @@ export default function ChatTestTool() {
               </Form.Item>
               <Form.Item label="消息列表">
                 {form.messages.map((msg, index) => (
-                  <div key={index} className="mb-2 p-2 border rounded">
-                    <span className="text-gray-500 text-sm">{msg.role}: </span>
+                  <div key={index} style={messageItemStyle}>
+                    <span style={roleLabelStyle}>{msg.role}: </span>
                     {msg.role === 'user' && index === form.messages.length - 1 ? (
                       <Input.TextArea
                         value={msg.content}
@@ -107,7 +174,7 @@ export default function ChatTestTool() {
                         autoSize={{ minRows: 1, maxRows: 4 }}
                       />
                     ) : (
-                      <div className="text-gray-700">{msg.content}</div>
+                      <div style={contentStyle}>{msg.content}</div>
                     )}
                   </div>
                 ))}
@@ -115,7 +182,7 @@ export default function ChatTestTool() {
                   type="dashed"
                   block
                   onClick={handleAddMessage}
-                  className="mt-2"
+                  style={{ marginTop: '8px' }}
                 >
                   + 添加消息
                 </Button>
@@ -125,8 +192,8 @@ export default function ChatTestTool() {
 
           {response && (
             <div>
-              <h4 className="font-medium mb-2">响应结果：</h4>
-              <pre className="bg-gray-100 p-4 rounded text-xs overflow-auto max-h-64">
+              <h4 style={headingStyle}>响应结果：</h4>
+              <pre style={preStyle}>
                 {response}
               </pre>
             </div>
@@ -134,16 +201,18 @@ export default function ChatTestTool() {
 
           {history.length > 0 && (
             <div>
-              <h4 className="font-medium mb-2">历史记录：</h4>
-              <div className="max-h-48 overflow-y-auto border rounded">
+              <h4 style={headingStyle}>历史记录：</h4>
+              <div style={historyContainerStyle}>
                 {history.map((item, index) => (
                   <div
                     key={index}
-                    className="p-3 border-b hover:bg-gray-50 cursor-pointer"
+                    style={historyItemStyle}
+                    onMouseEnter={(e) => Object.assign(e.currentTarget.style, historyItemHoverStyle)}
+                    onMouseLeave={(e) => Object.assign(e.currentTarget.style, historyItemStyle)}
                   >
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-500">{item.time}</span>
-                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                    <div style={flexBetweenStyle}>
+                      <span style={timeStyle}>{item.time}</span>
+                      <span style={modelTagStyle}>
                         {item.request.model}
                       </span>
                     </div>

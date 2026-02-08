@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Statistic, Row, Col, Space } from 'antd';
+import { Card, Statistic, Row, Col } from 'antd';
 import {
   ThunderboltOutlined,
   ClockCircleOutlined,
@@ -13,10 +13,40 @@ export interface StatCardProps {
   prefix?: React.ReactNode;
   suffix?: string;
   color?: string;
-  icon?: React.ReactNode;
   trend?: 'up' | 'down' | 'flat';
   loading?: boolean;
 }
+
+const cardStyle: React.CSSProperties = {
+  transition: 'box-shadow 0.3s',
+};
+
+const cardHoverStyle: React.CSSProperties = {
+  ...cardStyle,
+  boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03), 0 1px 6px -1px rgba(0,0,0,0.02), 0 2px 4px 0 rgba(0,0,0,0.02)',
+};
+
+const trendStyle: React.CSSProperties = {
+  marginTop: '8px',
+};
+
+const trendUpStyle: React.CSSProperties = {
+  color: '#52c41a',
+};
+
+const trendDownStyle: React.CSSProperties = {
+  color: '#ff4d4f',
+};
+
+const trendFlatStyle: React.CSSProperties = {
+  color: '#999',
+};
+
+const labelStyle: React.CSSProperties = {
+  fontSize: '12px',
+  color: '#999',
+  marginLeft: '4px',
+};
 
 export default function StatCard({
   title,
@@ -24,30 +54,32 @@ export default function StatCard({
   prefix,
   suffix,
   color = '#1890ff',
-  icon,
   trend,
   loading,
 }: StatCardProps) {
+  const [hovered, setHovered] = React.useState(false);
+
   return (
     <Card
       loading={loading}
-      className="hover:shadow-lg transition-shadow"
+      style={{ ...cardStyle, boxShadow: hovered ? cardHoverStyle.boxShadow : cardStyle.boxShadow || 'none' }}
       bodyStyle={{ padding: '24px' }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
       <Statistic
-        title={title}
+        title={<span style={{ fontSize: 14, color: '#8c8c8c' }}>{title}</span>}
         value={value}
         prefix={prefix}
         suffix={suffix}
         valueStyle={{ color }}
-        titleStyle={{ fontSize: 14, color: '#8c8c8c' }}
       />
       {trend && (
-        <div className="mt-2">
-          {trend === 'up' && <span className="text-green-500">↑</span>}
-          {trend === 'down' && <span className="text-red-500">↓</span>}
-          {trend === 'flat' && <span className="text-gray-400">-</span>}
-          <span className="text-xs text-gray-500 ml-1">较昨日</span>
+        <div style={trendStyle}>
+          {trend === 'up' && <span style={trendUpStyle}>↑</span>}
+          {trend === 'down' && <span style={trendDownStyle}>↓</span>}
+          {trend === 'flat' && <span style={trendFlatStyle}>-</span>}
+          <span style={labelStyle}>较昨日</span>
         </div>
       )}
     </Card>
@@ -58,9 +90,13 @@ export interface StatsSectionProps {
   loading?: boolean;
 }
 
+const sectionStyle: React.CSSProperties = {
+  marginBottom: '24px',
+};
+
 export function StatsSection({ loading }: StatsSectionProps) {
   return (
-    <Row gutter={[16, 16]} className="mb-6">
+    <Row gutter={[16, 16]} style={sectionStyle}>
       <Col xs={24} sm={12} lg={6}>
         <StatCard
           title="活跃会话"

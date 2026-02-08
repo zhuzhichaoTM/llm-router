@@ -106,15 +106,15 @@ class GatewayOrchestrator:
         # Process any pending switch
         await self._process_pending_switch()
 
-        now = int(time.time())
-        can_toggle = self._cooldown_until is None or now > self._cooldown_until
+        # No cooldown - always allow toggling
+        can_toggle = True
 
         return SwitchInfo(
             enabled=self._enabled,
             pending=self._pending_switch,
             pending_value=self._pending_value if self._pending_switch else None,
             scheduled_at=self._scheduled_at,
-            cooldown_until=self._cooldown_until,
+            cooldown_until=None,  # No cooldown
             can_toggle=can_toggle,
         )
 
@@ -141,14 +141,15 @@ class GatewayOrchestrator:
         """
         now = int(time.time())
 
+        # Cooldown disabled - allow instant toggling
         # Check cooldown
-        if self._cooldown_until and now < self._cooldown_until:
-            if not force:
-                cooldown_remaining = self._cooldown_until - now
-                raise RuntimeError(f"Cooldown active. {cooldown_remaining} seconds remaining.")
+        # if self._cooldown_until and now < self._cooldown_until:
+        #     if not force:
+        #         cooldown_remaining = self._cooldown_until - now
+        #         raise RuntimeError(f"Cooldown active. {cooldown_remaining} seconds remaining.")
 
         # Calculate delay
-        effective_delay = 0 if force else (delay or 10)
+        effective_delay = 0  # No delay for instant toggling
 
         if effective_delay > 0:
             # Schedule delayed switch
@@ -177,10 +178,10 @@ class GatewayOrchestrator:
             self._pending_switch = False
             self._scheduled_at = None
 
-            # Update cooldown
-            self._cooldown_until = now + 300  # 5 minutes cooldown
+            # No cooldown - allow instant toggling
+            self._cooldown_until = None
             redis = await RedisConfig.get_client()
-            await redis.set(RedisKeys.ROUTING_SWITCH_COOLDOWN, str(self._cooldown_until), ex=300)
+            await redis.delete(RedisKeys.ROUTING_SWITCH_COOLDOWN)
             await redis.delete(RedisKeys.ROUTING_SWITCH_PENDING)
 
             # Update current state
@@ -206,10 +207,10 @@ class GatewayOrchestrator:
             self._pending_value = False
             self._scheduled_at = None
 
-            # Update cooldown
-            self._cooldown_until = now + 300  # 5 minutes cooldown
+            # No cooldown - allow instant toggling
+            self._cooldown_until = None
             redis = await RedisConfig.get_client()
-            await redis.set(RedisKeys.ROUTING_SWITCH_COOLDOWN, str(self._cooldown_until), ex=300)
+            await redis.delete(RedisKeys.ROUTING_SWITCH_COOLDOWN)
             await redis.delete(RedisKeys.ROUTING_SWITCH_PENDING)
 
             # Update current state

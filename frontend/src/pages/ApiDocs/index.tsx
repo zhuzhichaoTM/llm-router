@@ -1,10 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Tabs, Typography, Code, Button, Alert } from 'antd';
-import { CopyOutlined, ApiOutlined } from '@ant-design/icons';
+import { Card, Tabs, Typography, Button, Alert, Row, Col } from 'antd';
+import { CopyOutlined } from '@ant-design/icons';
 import type { ModelInfo } from '@/types';
 import { chatApi } from '@/api/client';
 
 const { Title, Paragraph, Text } = Typography;
+
+const codeBlockStyle: React.CSSProperties = {
+  background: '#f5f5f5',
+  padding: '12px',
+  borderRadius: '4px',
+  fontFamily: 'monospace',
+  fontSize: '13px',
+  whiteSpace: 'pre-wrap',
+  overflow: 'auto',
+  marginBottom: '16px',
+};
+
+const containerStyle: React.CSSProperties = {
+  padding: '24px',
+};
 
 export default function ApiDocs() {
   const [loading, setLoading] = useState(false);
@@ -69,50 +84,50 @@ export default function ApiDocs() {
   ];
 
   return (
-    <div className="p-6">
-      <Title level={1} className="mb-6">API 文档</Title>
+    <div style={containerStyle}>
+      <Title level={1} style={{ marginBottom: '24px' }}>API 文档</Title>
 
       <Alert
         message="在开始使用 API 之前，请先设置您的 API Key"
         type="info"
         showIcon
-        className="mb-6"
+        style={{ marginBottom: '24px' }}
       />
 
-      <Card title="可用模型" className="mb-6" loading={loading}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <Card title="可用模型" style={{ marginBottom: '24px' }} loading={loading}>
+        <Row gutter={[16, 16]}>
           {models.map((model) => (
-            <Card
-              key={model.id}
-              size="small"
-              className="hover:shadow-md transition-shadow"
-              title={
+            <Col xs={24} sm={12} lg={8} key={model.id}>
+              <Card
+                size="small"
+                title={
+                  <div>
+                    <div style={{ fontWeight: 500 }}>{model.name}</div>
+                    <div style={{ fontSize: '12px', color: '#999' }}>{model.provider}</div>
+                  </div>
+                }
+              >
                 <div>
-                  <div className="font-medium">{model.name}</div>
-                  <div className="text-sm text-gray-500">{model.provider}</div>
+                  <div style={{ marginBottom: '8px' }}>
+                    <Text type="secondary">Context Window:</Text>
+                    <Text strong> {model.context_window.toLocaleString()}</Text>
+                  </div>
+                  <div style={{ marginBottom: '8px' }}>
+                    <Text type="secondary">Input Price:</Text>
+                    <Text strong> ${model.input_price_per_1k}/1K tokens</Text>
+                  </div>
+                  <div>
+                    <Text type="secondary">Output Price:</Text>
+                    <Text strong> ${model.output_price_per_1k}/1K tokens</Text>
+                  </div>
                 </div>
-              }
-            >
-              <div className="space-y-2">
-                <div>
-                  <Text type="secondary">Context Window:</Text>
-                  <Text strong>{model.context_window.toLocaleString()}</Text>
-                </div>
-                <div>
-                  <Text type="secondary">Input Price:</Text>
-                  <Text strong>${model.input_price_per_1k}/1K tokens</Text>
-                </div>
-                <div>
-                  <Text type="secondary">Output Price:</Text>
-                  <Text strong>${model.output_price_per_1k}/1K tokens</Text>
-                </div>
-              </div>
-            </Card>
+              </Card>
+            </Col>
           ))}
-        </div>
+        </Row>
       </Card>
 
-      <Card title="API 端点" className="mb-6">
+      <Card title="API 端点" style={{ marginBottom: '24px' }}>
         <Tabs
           defaultActiveKey="endpoints"
           items={[
@@ -123,13 +138,13 @@ export default function ApiDocs() {
                 <Card
                   key={index}
                   size="small"
-                  className="mb-2"
+                  style={{ marginBottom: '8px' }}
                 >
-                  <div className="flex items-center gap-4 mb-2">
-                    <Text code className="!bg-blue-100 text-blue-800">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
+                    <Text code style={{ background: '#e6f7ff', color: '#1890ff' }}>
                       {endpoint.method}
                     </Text>
-                    <Text strong className="text-lg">{endpoint.path}</Text>
+                    <Text strong style={{ fontSize: '16px' }}>{endpoint.path}</Text>
                   </div>
                   <Paragraph type="secondary">{endpoint.description}</Paragraph>
                 </Card>
@@ -141,10 +156,10 @@ export default function ApiDocs() {
               children: (
                 <div>
                   <Title level={5}>安装依赖</Title>
-                  <Code language="bash" className="mb-4">pip install axios</Code>
+                  <div style={codeBlockStyle}>pip install aiohttp</div>
 
                   <Title level={5}>发送聊天请求</Title>
-                  <Code language="python" className="mb-4">{`import asyncio
+                  <div style={codeBlockStyle}>{`import asyncio
 import aiohttp
 
 async def chat_completion():
@@ -169,7 +184,7 @@ async def chat_completion():
             print("Response:", data)
 
 asyncio.run(chat_completion())
-`}</Code>
+`}</div>
                 </div>
               ),
             },
@@ -179,7 +194,7 @@ asyncio.run(chat_completion())
               children: (
                 <div>
                   <Title level={5}>发送聊天请求</Title>
-                  <Code language="javascript" className="mb-4">{`import axios from 'axios';
+                  <div style={codeBlockStyle}>{`import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:8000';
 
@@ -208,7 +223,7 @@ async function chatCompletion() {
 }
 
 chatCompletion();
-`}</Code>
+`}</div>
                 </div>
               ),
             },
@@ -218,16 +233,16 @@ chatCompletion();
               children: (
                 <div>
                   <Title level={5}>发送聊天请求</Title>
-                  <div className="mb-4">
-                    <Code language="bash" className="mb-2">{`curl -X POST http://localhost:8000/api/v1/chat/completions \\\
-  -H "Authorization: Bearer YOUR_API_KEY" \\\
-  -H "Content-Type: application/json" \\\
+                  <div style={{ marginBottom: '16px' }}>
+                    <div style={codeBlockStyle}>{`curl -X POST http://localhost:8000/api/v1/chat/completions \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
   -d '{
     "model": "gpt-3.5-turbo",
     "messages": [
       {"role": "user", "content": "Hello!"}
     ]
-  }'`}</Code>
+  }'`}</div>
                     <Button
                       type="text"
                       size="small"
@@ -244,38 +259,38 @@ chatCompletion();
         />
       </Card>
 
-      <Card title="错误码说明" className="mb-6">
-        <table className="w-full">
+      <Card title="错误码说明" style={{ marginBottom: '24px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              <th className="text-left p-3 border-b">状态码</th>
-              <th className="text-left p-3 border-b">说明</th>
+              <th style={{ textAlign: 'left', padding: '12px', borderBottom: '1px solid #f0f0f0' }}>状态码</th>
+              <th style={{ textAlign: 'left', padding: '12px', borderBottom: '1px solid #f0f0f0' }}>说明</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td className="p-3"><Text code>200</Text></td>
-              <td className="p-3">请求成功</td>
+              <td style={{ padding: '12px' }}><Text code>200</Text></td>
+              <td style={{ padding: '12px' }}>请求成功</td>
             </tr>
             <tr>
-              <td className="p-3"><Text code>400</Text></td>
-              <td className="p-3">请求参数错误</td>
+              <td style={{ padding: '12px' }}><Text code>400</Text></td>
+              <td style={{ padding: '12px' }}>请求参数错误</td>
             </tr>
             <tr>
-              <td className="p-3"><Text code>401</Text></td>
-              <td className="p-3">API Key 无效或未提供</td>
+              <td style={{ padding: '12px' }}><Text code>401</Text></td>
+              <td style={{ padding: '12px' }}>API Key 无效或未提供</td>
             </tr>
             <tr>
-              <td className="p-3"><Text code>403</Text></td>
-              <td className="p-3">无权限（需要管理员 API Key）</td>
+              <td style={{ padding: '12px' }}><Text code>403</Text></td>
+              <td style={{ padding: '12px' }}>无权限（需要管理员 API Key）</td>
             </tr>
             <tr>
-              <td className="p-3"><Text code>429</Text></td>
-              <td className="p-3">请求过于频繁，请稍后重试</td>
+              <td style={{ padding: '12px' }}><Text code>429</Text></td>
+              <td style={{ padding: '12px' }}>请求过于频繁，请稍后重试</td>
             </tr>
             <tr>
-              <td className="p-3"><Text code>500</Text></td>
-              <td className="p-3">服务器内部错误</td>
+              <td style={{ padding: '12px' }}><Text code>500</Text></td>
+              <td style={{ padding: '12px' }}>服务器内部错误</td>
             </tr>
           </tbody>
         </table>

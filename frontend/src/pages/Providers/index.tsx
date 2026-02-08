@@ -1,8 +1,25 @@
 import React from 'react';
-import { Card, Table, Button, Tag, Space, Modal, Form, Input, message, Popconfirm, Statistic, Row, Col, Progress } from 'antd';
+import { Card, Table, Button, Tag, Space, Modal, Form, Input, message, Popconfirm, Statistic, Row, Col, Select, Typography } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 import { providerApi } from '@/api/client';
 import type { Provider, ProviderModel, ProviderHealth } from '@/types';
+
+const { Title } = Typography;
+
+const pageStyle: React.CSSProperties = {
+  padding: '24px',
+};
+
+const headerStyle: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: '24px',
+};
+
+const detailStyle: React.CSSProperties = {
+  color: '#999',
+};
 
 export default function Providers() {
   const [loading, setLoading] = React.useState(false);
@@ -19,17 +36,7 @@ export default function Providers() {
       const data = await providerApi.list();
       if (data) {
         setProviders(data);
-        // Fetch health status for each provider
-        for (const provider of data) {
-          try {
-            const healthData = await providerApi.healthCheck(provider.id);
-            if (healthData?.providers) {
-              setHealthStatus(prev => ({ ...prev, [provider.id]: healthData.providers[0] }));
-            }
-          } catch {
-            // Skip health check if it fails
-          }
-        }
+        // Don't fetch health status automatically - let user trigger it manually
       }
     } catch (error: any) {
       message.error('获取 Provider 列表失败');
@@ -212,7 +219,7 @@ export default function Providers() {
   const expandedRowRender = (record: Provider) => {
     const health = healthStatus[record.id];
     return (
-      <div className="p-4">
+      <div style={{ padding: '16px' }}>
         <Row gutter={[16, 16]}>
           <Col span={12}>
             <Statistic
@@ -223,7 +230,7 @@ export default function Providers() {
             />
           </Col>
           <Col span={12}>
-            <div className="text-gray-500">
+            <div style={detailStyle}>
               <p>Base URL: {record.base_url}</p>
               {record.region && <p>区域: {record.region}</p>}
               <p>超时: {record.timeout}s</p>
@@ -235,9 +242,9 @@ export default function Providers() {
   };
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Provider 配置</h1>
+    <div style={pageStyle}>
+      <div style={headerStyle}>
+        <Title level={2}>Provider 配置</Title>
         <Button
           type="primary"
           icon={<PlusOutlined />}
@@ -285,11 +292,11 @@ export default function Providers() {
             label="类型"
             rules={[{ required: true, message: '请选择 Provider 类型' }]}
           >
-            <select className="w-full p-2 border rounded">
-              <option value="openai">OpenAI</option>
-              <option value="anthropic">Anthropic</option>
-              <option value="custom">Custom</option>
-            </select>
+            <Select style={{ width: '100%' }}>
+              <Select.Option value="openai">OpenAI</Select.Option>
+              <Select.Option value="anthropic">Anthropic</Select.Option>
+              <Select.Option value="custom">Custom</Select.Option>
+            </Select>
           </Form.Item>
 
           <Form.Item

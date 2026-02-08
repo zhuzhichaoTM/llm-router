@@ -1,6 +1,28 @@
+import React from 'react';
 import type { DailyCost, ModelCost } from '@/types';
 import { Col, Row, Progress } from 'antd';
 import { Pie, Column, Line } from '@ant-design/charts';
+
+const headingStyle: React.CSSProperties = {
+  fontSize: '16px',
+  fontWeight: 500,
+  marginBottom: '16px',
+};
+
+const centerStyle: React.CSSProperties = {
+  textAlign: 'center',
+  padding: '32px 0',
+};
+
+const costValueStyle: React.CSSProperties = {
+  fontSize: '36px',
+  fontWeight: 'bold',
+  color: '#1890ff',
+};
+
+const progressStyle: React.CSSProperties = {
+  marginTop: '16px',
+};
 
 export interface CostChartProps {
   dailyData: DailyCost[];
@@ -11,7 +33,7 @@ export interface CostChartProps {
 
 export default function CostChart({ dailyData, modelData, todayCost, loading }: CostChartProps) {
   const dailyChartData = React.useMemo(() => {
-    return dailyData.map(item => ({
+    return (dailyData || []).map(item => ({
       date: item.date,
       value: item.cost,
       tokens: item.tokens,
@@ -19,14 +41,14 @@ export default function CostChart({ dailyData, modelData, todayCost, loading }: 
   }, [dailyData]);
 
   const modelChartData = React.useMemo(() => {
-    return modelData.map(item => ({
+    return (modelData || []).map(item => ({
       name: item.model_id,
       value: item.total_cost,
     }));
   }, [modelData]);
 
   const pieData = React.useMemo(() => {
-    return modelData.slice(0, 6).map(item => ({
+    return (modelData || []).slice(0, 6).map(item => ({
       name: item.model_id,
       value: item.total_cost,
     }));
@@ -35,7 +57,7 @@ export default function CostChart({ dailyData, modelData, todayCost, loading }: 
   return (
     <Row gutter={[16, 16]}>
       <Col xs={24} lg={12}>
-        <h3 className="text-lg font-medium mb-4">成本趋势（近7天）</h3>
+        <h3 style={headingStyle}>成本趋势（近7天）</h3>
         <Line
           height={300}
           data={dailyChartData}
@@ -48,7 +70,7 @@ export default function CostChart({ dailyData, modelData, todayCost, loading }: 
       </Col>
 
       <Col xs={24} lg={12}>
-        <h3 className="text-lg font-medium mb-4">模型成本分布</h3>
+        <h3 style={headingStyle}>模型成本分布</h3>
         <Pie
           height={300}
           data={pieData}
@@ -70,7 +92,7 @@ export default function CostChart({ dailyData, modelData, todayCost, loading }: 
       </Col>
 
       <Col xs={24}>
-        <h3 className="text-lg font-medium mb-4">模型成本详情</h3>
+        <h3 style={headingStyle}>模型成本详情</h3>
         <Column
           xField="name"
           yField="value"
@@ -82,9 +104,9 @@ export default function CostChart({ dailyData, modelData, todayCost, loading }: 
       </Col>
 
       <Col xs={24} lg={12}>
-        <h3 className="text-lg font-medium mb-4">今日成本</h3>
-        <div className="text-center py-8">
-          <div className="text-4xl font-bold text-blue-600">
+        <h3 style={headingStyle}>今日成本</h3>
+        <div style={centerStyle}>
+          <div style={costValueStyle}>
             ${todayCost.toFixed(4)}
           </div>
           <Progress
@@ -93,7 +115,7 @@ export default function CostChart({ dailyData, modelData, todayCost, loading }: 
               '0%': '#108ee9',
               '100%': '#87d068',
             }}
-            className="mt-4"
+            style={progressStyle}
           />
         </div>
       </Col>

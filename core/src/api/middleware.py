@@ -42,12 +42,13 @@ class APIKeyAuth:
         # Check for admin key
         if api_key == settings.admin_api_key:
             # Create a temporary admin user
+            from src.models.user import UserRole, UserStatus
             admin_user = User(
                 id=0,
                 username="admin",
                 email="admin@llm-router.local",
-                role="admin",
-                status="active",
+                role=UserRole.ADMIN,
+                status=UserStatus.ACTIVE,
             )
             return admin_user, None
 
@@ -61,13 +62,14 @@ class APIKeyAuth:
 
         if cached:
             import json
+            from src.models.user import UserRole, UserStatus
             cached_data = json.loads(cached)
             user = User(
                 id=cached_data["user_id"],
                 username=cached_data["username"],
                 email=cached_data["email"],
-                role=cached_data["role"],
-                status=cached_data["status"],
+                role=UserRole(cached_data["role"]),
+                status=UserStatus(cached_data["status"]),
             )
             api_key_obj = APIKey(
                 id=cached_data["api_key_id"],

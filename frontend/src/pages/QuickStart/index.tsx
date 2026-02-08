@@ -1,14 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Steps, Input, Button, Form, message, Typography, Alert } from 'antd';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Card, Steps, Input, Button, Form, message, Typography, Alert, Row, Col } from 'antd';
 import { CheckCircleOutlined, KeyOutlined, RocketOutlined, ArrowRightOutlined } from '@ant-design/icons';
-import { setApiKey } from '@/api/client';
+import { useConfig } from '@/hooks/useConfig';
 
 const { Title, Paragraph, Text } = Typography;
 
 export default function QuickStart() {
-  const [apiKey, setApiKeyInput] = useState('');
+  console.log('QuickStart: Component rendering START');
+
   const [currentStep, setCurrentStep] = useState(0);
   const [form] = Form.useForm();
+  const { setApiKey: saveApiKey } = useConfig();
+  const navigate = useNavigate();
+
+  console.log('QuickStart: State initialized, currentStep =', currentStep);
 
   const steps = [
     {
@@ -26,32 +32,85 @@ export default function QuickStart() {
       icon: <CheckCircleOutlined />,
       description: '使用 API Key 发送您的第一个请求',
     },
+    {
+      title: '完成',
+      icon: <CheckCircleOutlined />,
+      description: '开始使用 LLM Router',
+    },
   ];
 
   const handleSaveApiKey = async () => {
     const values = await form.validateFields();
     if (values.apiKey) {
-      setApiKey(values.apiKey);
+      saveApiKey(values.apiKey);
       setCurrentStep(1);
       message.success('API Key 已保存');
     }
   };
 
   const handleNextStep = () => {
-    if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1);
-    }
+    setCurrentStep(currentStep + 1);
   };
 
-  const isStepComplete = (stepIndex: number) => {
-    return stepIndex < currentStep;
+  const containerStyle: React.CSSProperties = {
+    maxWidth: '900px',
+    margin: '0 auto',
   };
+
+  const codeStyle: React.CSSProperties = {
+    background: '#f5f5f5',
+    padding: '16px',
+    borderRadius: '4px',
+    fontFamily: 'monospace',
+    fontSize: '14px',
+    overflow: 'auto',
+  };
+
+  const centerStyle: React.CSSProperties = {
+    textAlign: 'center',
+    padding: '40px 0',
+  };
+
+  const iconStyle: React.CSSProperties = {
+    fontSize: '64px',
+    color: '#52c41a',
+    marginBottom: '24px',
+  };
+
+  const jsCode = `import axios from 'axios';
+
+const API_KEY = 'YOUR_API_KEY';
+
+axios.post('http://localhost:8000/api/v1/chat/completions', {
+  model: 'gpt-3.5-turbo',
+  messages: [
+    { role: 'user', content: 'Hello!' }
+  ]
+}, {
+  headers: {
+    'Authorization': \`Bearer \${API_KEY}\`
+  }
+}).then(response => {
+  console.log(response.data);
+}).catch(error => {
+  console.error(error);
+});`;
+
+  const curlCode = `curl -X POST http://localhost:8000/api/v1/chat/completions \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "gpt-3.5-turbo",
+    "messages": [
+      {"role": "user", "content": "Hello!"}
+    ]
+  }'`;
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <Title level={1} className="text-center mb-8">快速开始</Title>
+    <div style={containerStyle}>
+      <Title level={1} style={{ textAlign: 'center', marginBottom: '32px' }}>快速开始</Title>
 
-      <Steps current={currentStep} className="mb-8">
+      <Steps current={currentStep} style={{ marginBottom: '32px' }}>
         {steps.map((step, index) => (
           <Steps.Step
             key={index}
@@ -75,7 +134,7 @@ export default function QuickStart() {
             message="API Key 将保存在本地浏览器中，请勿在公共设备上使用"
             type="warning"
             showIcon
-            className="mb-4"
+            style={{ marginBottom: '16px' }}
           />
 
           <Form form={form} layout="vertical" onFinish={handleSaveApiKey}>
@@ -113,31 +172,35 @@ export default function QuickStart() {
             根据您的使用场景选择合适的配置。
           </Paragraph>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <Card
-              type="inner"
-              title="开发环境"
-              extra={<Button type="link">查看文档</Button>}
-            >
-              <ul className="space-y-2">
-                <li>Base URL: <Text code>http://localhost:8000</Text></li>
-                <li>支持 CORS</li>
-                <li>实时日志</li>
-              </ul>
-            </Card>
-            <Card
-              type="inner"
-              title="生产环境"
-              extra={<Button type="link">查看文档</Button>}
-            >
-              <ul className="space-y-2">
-                <li>Base URL: <Text code>https://your-domain.com</Text></li>
-                <li>HTTPS 支持</li>
-                <li>负载均衡</li>
-                <li>自动重试</li>
-              </ul>
-            </Card>
-          </div>
+          <Row gutter={[16, 16]} style={{ marginBottom: '16px' }}>
+            <Col xs={24} md={12}>
+              <Card
+                type="inner"
+                title="开发环境"
+                extra={<Button type="link">查看文档</Button>}
+              >
+                <ul style={{ paddingLeft: '20px', margin: 0 }}>
+                  <li style={{ marginBottom: '8px' }}>Base URL: <Text code>http://localhost:8000</Text></li>
+                  <li style={{ marginBottom: '8px' }}>支持 CORS</li>
+                  <li>实时日志</li>
+                </ul>
+              </Card>
+            </Col>
+            <Col xs={24} md={12}>
+              <Card
+                type="inner"
+                title="生产环境"
+                extra={<Button type="link">查看文档</Button>}
+              >
+                <ul style={{ paddingLeft: '20px', margin: 0 }}>
+                  <li style={{ marginBottom: '8px' }}>Base URL: <Text code>https://your-domain.com</Text></li>
+                  <li style={{ marginBottom: '8px' }}>HTTPS 支持</li>
+                  <li style={{ marginBottom: '8px' }}>负载均衡</li>
+                  <li>自动重试</li>
+                </ul>
+              </Card>
+            </Col>
+          </Row>
 
           <Button
             type="primary"
@@ -158,52 +221,30 @@ export default function QuickStart() {
             您现在可以使用 API 发送请求了。以下是快速开始示例。
           </Paragraph>
 
-          <div className="space-y-4">
-            <Card
-              type="inner"
-              title="JavaScript"
-            >
-              <Code language="javascript" className="mb-2">{`import axios from 'axios';
+          <Card style={{ marginBottom: '16px' }} title="JavaScript">
+            <div style={codeStyle}>{jsCode}</div>
+          </Card>
 
-const API_KEY = 'YOUR_API_KEY';
+          <Card style={{ marginBottom: '16px' }} title="cURL">
+            <div style={codeStyle}>{curlCode}</div>
+          </Card>
 
-axios.post('http://localhost:8000/api/v1/chat/completions', {
-  model: 'gpt-3.5-turbo',
-  messages: [
-    { role: 'user', content: 'Hello!' }
-  ]
-}, {
-  headers: {
-    'Authorization': \`Bearer \${API_KEY}\`
-  }
-}).then(response => {
-  console.log(response.data);
-}).catch(error => {
-  console.error(error);
-});`}</Code>
-            </Card>
+          <Button
+            type="primary"
+            size="large"
+            block
+            icon={<ArrowRightOutlined />}
+            onClick={handleNextStep}
+            style={{ marginBottom: '16px' }}
+          >
+            完成
+          </Button>
 
-            <Card
-              type="inner"
-              title="cURL"
-            >
-              <Code language="bash">{`curl -X POST http://localhost:8000/api/v1/chat/completions \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "model": "gpt-3.5-turbo",
-    "messages": [
-      {"role": "user", "content": "Hello!"}
-    ]
-  }'`}</Code>
-            </Card>
-          </div>
-
-          <div className="text-center mt-6">
+          <div style={{ textAlign: 'center', marginTop: '24px' }}>
             <Button
               type="primary"
               size="large"
-              onClick={() => window.location.href = '/api-docs'}
+              onClick={() => navigate('/api-docs')}
             >
               查看完整 API 文档
             </Button>
@@ -213,26 +254,24 @@ axios.post('http://localhost:8000/api/v1/chat/completions', {
 
       {currentStep === 3 && (
         <Card>
-          <div className="text-center py-8">
-            <div className="mb-4">
-              <CheckCircleOutlined className="text-6xl text-green-500" />
-            </div>
+          <div style={centerStyle}>
+            <CheckCircleOutlined style={iconStyle} />
             <Title level={2}>恭喜！</Title>
-            <Paragraph className="text-lg">
+            <Paragraph style={{ fontSize: '18px' }}>
               您已完成快速开始向导。现在可以开始使用 LLM Router 了。
             </Paragraph>
 
-            <div className="flex justify-center gap-4 mt-6">
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '24px' }}>
               <Button
                 type="primary"
                 size="large"
-                onClick={() => window.location.href = '/api-docs'}
+                onClick={() => navigate('/api-docs')}
               >
                 查看 API 文档
               </Button>
               <Button
                 size="large"
-                onClick={() => window.location.href = '/dashboard'}
+                onClick={() => navigate('/dashboard')}
               >
                 进入仪表盘
               </Button>

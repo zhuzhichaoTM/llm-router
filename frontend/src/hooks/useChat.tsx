@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { chatApi } from '@/api/client';
 import type { ChatCompletionRequest, ChatCompletionResponse } from '@/types';
 

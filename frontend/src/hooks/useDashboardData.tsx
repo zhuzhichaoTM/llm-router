@@ -1,12 +1,8 @@
 import { useState, useEffect } from 'react';
-import { routerApi, costApi, providerApi } from '@/api/client';
+import { routerApi, costApi, providerApi, chatApi } from '@/api/client';
 import type {
   SwitchStatus,
   RouterMetrics,
-  RoutingRule,
-  DailyCost,
-  ModelCost,
-  UserCost,
   Provider,
   ModelInfo,
 } from '@/types';
@@ -24,11 +20,11 @@ export function useDashboardData() {
     setLoading(true);
     try {
       const [status, metricsData, dailyData, providerList, modelList] = await Promise.all([
-        routerApi.getStatus(),
-        routerApi.getMetrics(),
-        costApi.getCurrent(),
-        providerApi.list(),
-        chatApi.listModels(),
+        routerApi.getStatus().catch(() => null),
+        routerApi.getMetrics().catch(() => null),
+        costApi.getCurrent().catch(() => null),
+        providerApi.list().catch(() => []),
+        chatApi.listModels().catch(() => []),
       ]);
 
       if (status) setSwitchStatus(status);

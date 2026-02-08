@@ -18,7 +18,7 @@ from src.agents.gateway_orchestrator import orchestrator
 from src.agents.routing_agent import routing_agent
 from src.agents.provider_agent import provider_agent
 from src.api.middleware import setup_cors, LoggingMiddleware
-from src.api.v1 import chat, router, cost, providers
+from src.api.v1 import chat, router, cost, providers, analytics
 
 
 @asynccontextmanager
@@ -163,6 +163,7 @@ app.include_router(chat.router, prefix="/api/v1")
 app.include_router(router.router, prefix="/api/v1")
 app.include_router(cost.router, prefix="/api/v1")
 app.include_router(providers.router, prefix="/api/v1")
+app.include_router(analytics.router, prefix="/api/v1")
 
 
 if __name__ == "__main__":
