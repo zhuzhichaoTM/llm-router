@@ -99,7 +99,7 @@ class APIKeyAuth:
             select(User).where(User.id == api_key_obj.user_id)
         )
 
-        if not user or user.status.value != "active":
+        if not user or user.status != "active":
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User account is inactive",

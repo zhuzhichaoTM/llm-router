@@ -34,7 +34,14 @@ async def list_providers(request: Request):
     """
     # Verify admin access
     from src.api.middleware import APIKeyAuth
-    user, api_key = await APIKeyAuth.verify_api_key(request)
+
+    result = await APIKeyAuth.verify_api_key(request)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required",
+        )
+    user, api_key = result
 
     if not user or user.role.value != "admin":
         raise HTTPException(
@@ -87,7 +94,14 @@ async def create_provider(
     """
     # Verify admin access
     from src.api.middleware import APIKeyAuth
-    user, api_key = await APIKeyAuth.verify_api_key(http_request)
+
+    result = await APIKeyAuth.verify_api_key(http_request)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required",
+        )
+    user, api_key = result
 
     if not user or user.role.value != "admin":
         raise HTTPException(
@@ -151,7 +165,14 @@ async def get_provider(provider_id: int, request: Request):
     """
     # Verify admin access
     from src.api.middleware import APIKeyAuth
-    user, api_key = await APIKeyAuth.verify_api_key(request)
+
+    result = await APIKeyAuth.verify_api_key(request)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required",
+        )
+    user, api_key = result
 
     if not user or user.role.value != "admin":
         raise HTTPException(
@@ -208,7 +229,14 @@ async def health_check(provider_id: int, request: Request):
     """
     # Verify admin access
     from src.api.middleware import APIKeyAuth
-    user, api_key = await APIKeyAuth.verify_api_key(request)
+
+    result = await APIKeyAuth.verify_api_key(request)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required",
+        )
+    user, api_key = result
 
     if not user or user.role.value != "admin":
         raise HTTPException(
@@ -272,7 +300,14 @@ async def list_provider_models(provider_id: int, request: Request):
     """
     # Verify admin access
     from src.api.middleware import APIKeyAuth
-    user, api_key = await APIKeyAuth.verify_api_key(request)
+
+    result = await APIKeyAuth.verify_api_key(request)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required",
+        )
+    user, api_key = result
 
     if not user or user.role.value != "admin":
         raise HTTPException(
@@ -324,7 +359,14 @@ async def create_provider_model(
     """
     # Verify admin access
     from src.api.middleware import APIKeyAuth
-    user, api_key = await APIKeyAuth.verify_api_key(http_request)
+
+    result = await APIKeyAuth.verify_api_key(http_request)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required",
+        )
+    user, api_key = result
 
     if not user or user.role.value != "admin":
         raise HTTPException(
@@ -381,7 +423,14 @@ async def update_provider(
     """
     # Verify admin access
     from src.api.middleware import APIKeyAuth
-    user, api_key = await APIKeyAuth.verify_api_key(http_request)
+
+    result = await APIKeyAuth.verify_api_key(http_request)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required",
+        )
+    user, api_key = result
 
     if not user or user.role.value != "admin":
         raise HTTPException(
@@ -477,7 +526,14 @@ async def delete_provider(
     """
     # Verify admin access
     from src.api.middleware import APIKeyAuth
-    user, api_key = await APIKeyAuth.verify_api_key(http_request)
+
+    result = await APIKeyAuth.verify_api_key(http_request)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required",
+        )
+    user, api_key = result
 
     if not user or user.role.value != "admin":
         raise HTTPException(
@@ -534,7 +590,14 @@ async def update_provider_model(
     """
     # Verify admin access
     from src.api.middleware import APIKeyAuth
-    user, api_key = await APIKeyAuth.verify_api_key(http_request)
+
+    result = await APIKeyAuth.verify_api_key(http_request)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required",
+        )
+    user, api_key = result
 
     if not user or user.role.value != "admin":
         raise HTTPException(
@@ -616,7 +679,14 @@ async def delete_provider_model(
     """
     # Verify admin access
     from src.api.middleware import APIKeyAuth
-    user, api_key = await APIKeyAuth.verify_api_key(http_request)
+
+    result = await APIKeyAuth.verify_api_key(http_request)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required",
+        )
+    user, api_key = result
 
     if not user or user.role.value != "admin":
         raise HTTPException(

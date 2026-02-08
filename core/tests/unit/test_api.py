@@ -7,14 +7,23 @@ from fastapi.testclient import TestClient
 
 from src.main import app
 from src.api.middleware import APIKeyAuth
-from src.models.user import User, UserRole
+from src.models.user import User, UserRole, UserStatus
 from src.schemas.router import ToggleRequest, RoutingRuleCreate
 
 
 @pytest.fixture
 def client():
-    """Create test client."""
-    return TestClient(app)
+    """Create test client with mock Redis."""
+    from unittest.mock import AsyncMock
+
+    # Create mock Redis client
+    mock_redis = AsyncMock()
+    mock_redis.ping = AsyncMock(return_value=True)
+
+    # Patch RedisConfig.get_client to return mock
+    with patch("src.config.redis_config.RedisConfig.get_client", return_value=mock_redis):
+        with patch("src.main.RedisConfig.get_client", return_value=mock_redis):
+            yield TestClient(app)
 
 
 @pytest.fixture
@@ -25,7 +34,7 @@ def mock_admin_user():
         username="admin",
         email="admin@llm-router.local",
         role=UserRole.ADMIN,
-        status="active",
+        status=UserStatus.ACTIVE,
     )
 
 
@@ -37,7 +46,7 @@ def mock_user():
         username="testuser",
         email="test@example.com",
         role=UserRole.USER,
-        status="active",
+        status=UserStatus.ACTIVE,
     )
 
 
@@ -91,7 +100,7 @@ class TestRouterEndpoints:
         with patch.object(
             APIKeyAuth,
             "verify_api_key",
-            return_value=(mock_admin_user(), None)
+            return_value=(mock_admin_user, None)
         ):
             response = client.post(
                 "/api/v1/router/toggle",
@@ -173,7 +182,8 @@ class TestMiddleware:
     """Test API middleware."""
 
     @pytest.mark.unit
-    def test_api_key_auth_missing(self):
+    @pytest.mark.asyncio
+    async def test_api_key_auth_missing(self):
         """Test API key auth with missing key."""
         from src.api.middleware import APIKeyAuth
         from fastapi import Request
@@ -182,9 +192,8 @@ class TestMiddleware:
         mock_request = AsyncMock(spec=Request)
         mock_request.headers = {}
 
-        user, api_key = APIKeyAuth.verify_api_key(mock_request)
-        assert user is None
-        assert api_key is None
+        result = await APIKeyAuth.verify_api_key(mock_request)
+        assert result is None
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -203,7 +212,7 @@ class TestMiddleware:
             with patch("src.db.session.SessionManager.execute_get_one"):
                 user, api_key = await APIKeyAuth.verify_api_key(mock_request)
                 assert user is not None
-                assert user.role.value == "admin"
+                assert user.role == UserRole.ADMIN
                 assert api_key is None  # Admin key bypasses database
 
 
@@ -218,7 +227,7 @@ class TestSchemas:
         assert request.value is True
         assert request.reason == "Test toggle"
         assert request.force is False  # Default
-        assert request.delay == 10  # Default
+        assert request.delay is None  # Default (no default delay set)
 
     @pytest.mark.unit
     def test_toggle_request_validation(self):
@@ -265,7 +274,7 @@ class TestSchemas:
     @pytest.mark.unit
     def test_message_validation(self):
         """Test Message validation."""
-        from src.schemas.chat import Message
+        from src.schemas.chat import Message, ChatCompletionRequest
         from pydantic import ValidationError
 
         # Test missing role

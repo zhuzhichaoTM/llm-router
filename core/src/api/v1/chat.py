@@ -43,7 +43,13 @@ async def chat_completions(
     from src.providers.base import ChatRequest, ChatMessage
 
     # Verify API key
-    user, api_key = await APIKeyAuth.verify_api_key(http_request)
+    result = await APIKeyAuth.verify_api_key(http_request)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required",
+        )
+    user, api_key = result
 
     if not user:
         raise HTTPException(
@@ -152,7 +158,13 @@ async def list_models(
     Returns all available models from all configured providers.
     """
     # Verify API key
-    user, api_key = await APIKeyAuth.verify_api_key(http_request)
+    result = await APIKeyAuth.verify_api_key(http_request)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required",
+        )
+    user, api_key = result
 
     if not user:
         raise HTTPException(
