@@ -48,7 +48,7 @@ class RedisConfig:
 
 # Redis keys
 class RedisKeys:
-    """Redis key templates."""
+    """Redis key templates and generators."""
 
     # Routing switch state
     ROUTING_SWITCH_ENABLED = "router:switch:enabled"
@@ -57,8 +57,21 @@ class RedisKeys:
     ROUTING_SWITCH_HISTORY = "router:switch:history"
 
     # Provider health and metrics
-    PROVIDER_HEALTH = "provider:{provider_id}:health"
-    PROVIDER_METRICS = "provider:{provider_id}:metrics"
+    @staticmethod
+    def provider_health(provider_id: int) -> str:
+        """Generate key for provider health status."""
+        return f"provider:{provider_id}:health"
+
+    @staticmethod
+    def provider_metrics(provider_id: int) -> str:
+        """Generate key for provider metrics."""
+        return f"provider:{provider_id}:metrics"
+
+    @staticmethod
+    def circuit_breaker_state(provider_id: int) -> str:
+        """Generate key for circuit breaker state."""
+        return f"circuit_breaker:{provider_id}:state"
+
     PROVIDER_AVG_LATENCY = "provider:{provider_id}:latency"
     PROVIDER_SUCCESS_RATE = "provider:{provider_id}:success_rate"
     PROVIDER_CURRENT_REQUESTS = "provider:{provider_id}:requests"
@@ -83,3 +96,15 @@ class RedisKeys:
 
     # API keys
     API_KEY_CACHE = "api_key:{key_hash}"
+
+    # Audit logs
+    @staticmethod
+    def audit_log_prefix(event_type: str) -> str:
+        """Generate key for audit logs."""
+        return f"audit:{event_type}"
+
+    # Budget info
+    @staticmethod
+    def budget_info(user_id: int) -> str:
+        """Generate key for budget info."""
+        return f"budget:user:{user_id}"

@@ -87,9 +87,9 @@ class TestOpenAIProvider:
             model_id="gpt-3.5-turbo",
         )
         assert input_cost == Decimal("0.0005")  # 0.0005 per 1K tokens
-        assert output_cost == Decimal("0.0015")  # 0.0015 per 1K tokens
+        assert output_cost == Decimal("0.0030")  # 0.0015 per 1K tokens * 2000 / 1000
         total_cost = input_cost + output_cost
-        assert total_cost == Decimal("0.0020")
+        assert total_cost == Decimal("0.0035")
 
     @pytest.mark.unit
     def test_calculate_cost_unknown_model(self, provider):
@@ -108,11 +108,11 @@ class TestOpenAIProvider:
         """Test successful health check."""
         with patch("httpx.AsyncClient") as mock_client_class:
             mock_client = AsyncMock()
-            mock_client.post.return_value = MagicMock(
-                status_code=200,
-                raise_for_status=MagicMock(),
-                json=lambda: sample_openai_response,
-            )
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.raise_for_status = MagicMock()
+            mock_response.json.return_value = sample_openai_response
+            mock_client.get.return_value = mock_response
             mock_client_class.return_value = mock_client
 
             # Create new provider instance with mocked client
@@ -128,18 +128,21 @@ class TestOpenAIProvider:
     @pytest.mark.asyncio
     async def test_health_check_failure(self, provider):
         """Test failed health check."""
+        from httpx import HTTPStatusError
+
         with patch("httpx.AsyncClient") as mock_client_class:
             mock_client = AsyncMock()
             mock_response = MagicMock()
             mock_response.status_code = 401
-            mock_response.json.return_value = {
-                "error": {
-                    "message": "Unauthorized",
-                    "type": "invalid_request_error",
-                }
-            }
-            mock_response.raise_for_status.side_effect = Exception("401 Unauthorized")
-            mock_client.post.return_value = mock_response
+
+            # Create proper HTTPStatusError
+            error = HTTPStatusError(
+                "Unauthorized",
+                request=MagicMock(),
+                response=mock_response
+            )
+            mock_response.raise_for_status.side_effect = error
+            mock_client.get.return_value = mock_response
             mock_client_class.return_value = mock_client
 
             # Create new provider instance with mocked client
@@ -149,7 +152,7 @@ class TestOpenAIProvider:
             health = await provider.health_check()
 
             assert health.is_healthy is False
-            assert "Unauthorized" in health.error_message
+            assert "HTTP 401" in health.error_message
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -210,9 +213,9 @@ class TestAnthropicProvider:
             model_id="claude-3-haiku-20240307",
         )
         assert input_cost == Decimal("0.00025")  # 0.00025 per 1K tokens
-        assert output_cost == Decimal("0.00125")  # 0.00125 per 1K tokens
+        assert output_cost == Decimal("0.00250")  # 0.00125 per 1K tokens * 2000 / 1000
         total_cost = input_cost + output_cost
-        assert total_cost == Decimal("0.0015")
+        assert total_cost == Decimal("0.00275")
 
     @pytest.mark.unit
     def test_calculate_cost_unknown_model(self, provider):

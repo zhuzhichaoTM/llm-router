@@ -5,6 +5,9 @@ import pytest
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 
+from sqlalchemy import Integer
+from sqlalchemy.orm import mapped_column
+
 from src.models.base import Base, TimestampMixin
 from src.models.user import User, APIKey, UserRole, UserStatus
 from src.models.provider import Provider, ProviderModel, ProviderType, ProviderStatus
@@ -20,6 +23,7 @@ class TestTimestampMixin:
         """Test that TimestampMixin adds timestamps."""
         class TestModel(Base, TimestampMixin):
             __tablename__ = "test"
+            id = mapped_column(Integer, primary_key=True, autoincrement=True)
 
         model = TestModel()
         assert hasattr(model, "created_at")

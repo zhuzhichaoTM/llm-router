@@ -1,0 +1,2 @@
+通过uv方式执行python相关指令
+通过docker compose启动容器

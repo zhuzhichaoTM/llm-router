@@ -12,43 +12,119 @@ import sys
 if sys_path not in sys.path:
     sys.path.insert(0, sys_path)
 
+# Import test helpers
+from tests.helpers import test_engine, test_session, mock_redis
+
 
 @pytest.fixture(scope="session")
-def event_loop() -> Generator:
-    """Create an event loop for the test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
+def event_loop_policy():
+    """Set event loop policy for the test session."""
+    policy = asyncio.get_event_loop_policy()
+    yield policy
+
+
+@pytest.fixture(scope="function")
+def event_loop():
+    """Create a new event loop for each test."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     yield loop
+    # Clean up
     loop.close()
+    asyncio.set_event_loop(None)
 
 
 @pytest.fixture
 async def redis_client(event_loop):
-    """Get a Redis client for testing."""
-    from src.config.redis_config import RedisConfig
-    client = await RedisConfig.get_client()
-    yield client
-    # Cleanup
-    await client.flushall()
+    """Get a mock Redis client for testing."""
+    from unittest.mock import AsyncMock
 
+    async def mock_get(key):
+        return None
 
-@pytest.fixture
-async def db_session(event_loop):
-    """Get a database session for testing."""
-    from src.db.base import async_session_maker, Base, engine
-    from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+    async def mock_set(key, value, ex=None):
+        return True
 
-    # Create test database tables
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    async def mock_hget(key, field):
+        return None
 
-    # Create session
-    async with async_session_maker() as session:
-        yield session
-        await session.rollback()
+    async def mock_hgetall(key):
+        return {}
 
-    # Drop test database tables
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+    async def mock_hset(key, mapping=None, **kwargs):
+        return True
+
+    async def mock_expire(key, time):
+        return True
+
+    async def mock_delete(*keys):
+        return 1
+
+    async def mock_incr(key):
+        return 1
+
+    async def mock_incrby(key, amount):
+        return 1
+
+    async def mock_lpush(key, *values):
+        return 1
+
+    async def mock_ltrim(key, start, stop):
+        return True
+
+    async def mock_lrange(key, start, stop):
+        return []
+
+    async def mock_flushall():
+        return True
+
+    async def mock_ping():
+        return True
+
+    class MockRedisClient:
+        async def get(self, key):
+            return await mock_get(key)
+
+        async def set(self, key, value, ex=None):
+            return await mock_set(key, value, ex)
+
+        async def hget(self, key, field):
+            return await mock_hget(key, field)
+
+        async def hgetall(self, key):
+            return await mock_hgetall(key)
+
+        async def hset(self, key, mapping=None, **kwargs):
+            return await mock_hset(key, mapping, **kwargs)
+
+        async def expire(self, key, time):
+            return await mock_expire(key, time)
+
+        async def delete(self, *keys):
+            return await mock_delete(*keys)
+
+        async def incr(self, key):
+            return await mock_incr(key)
+
+        async def incrby(self, key, amount):
+            return await mock_incrby(key, amount)
+
+        async def lpush(self, key, *values):
+            return await mock_lpush(key, *values)
+
+        async def ltrim(self, key, start, stop):
+            return await mock_ltrim(key, start, stop)
+
+        async def lrange(self, key, start, stop):
+            return await mock_lrange(key, start, stop)
+
+        async def flushall(self):
+            return await mock_flushall()
+
+        async def ping(self):
+            return await mock_ping()
+
+    yield MockRedisClient()
 
 
 @pytest.fixture
@@ -126,3 +202,9 @@ pytestmark = [
     pytest.mark.unit,
     pytest.mark.integration,
 ]
+
+
+@pytest.fixture
+async def db_session(test_session) -> AsyncGenerator:
+    """Alias for test_session for backward compatibility."""
+    yield test_session

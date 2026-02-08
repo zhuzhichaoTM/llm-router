@@ -32,7 +32,14 @@ async def get_current_cost(request: Request):
     """
     # Verify admin access
     from src.api.middleware import APIKeyAuth
-    user, api_key = await APIKeyAuth.verify_api_key(request)
+
+    result = await APIKeyAuth.verify_api_key(request)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required",
+        )
+    user, api_key = result
 
     if not user or user.role.value != "admin":
         raise HTTPException(
@@ -63,7 +70,14 @@ async def get_daily_cost(
     """
     # Verify admin access
     from src.api.middleware import APIKeyAuth
-    user, api_key = await APIKeyAuth.verify_api_key(request)
+
+    result = await APIKeyAuth.verify_api_key(request)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required",
+        )
+    user, api_key = result
 
     if not user or user.role.value != "admin":
         raise HTTPException(
@@ -95,7 +109,14 @@ async def get_cost_summary(
     """
     # Verify admin access
     from src.api.middleware import APIKeyAuth
-    user, api_key = await APIKeyAuth.verify_api_key(request)
+
+    result = await APIKeyAuth.verify_api_key(request)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required",
+        )
+    user, api_key = result
 
     if not user or user.role.value != "admin":
         raise HTTPException(
@@ -126,7 +147,14 @@ async def get_cost_by_model(
     """
     # Verify admin access
     from src.api.middleware import APIKeyAuth
-    user, api_key = await APIKeyAuth.verify_api_key(request)
+
+    result = await APIKeyAuth.verify_api_key(request)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required",
+        )
+    user, api_key = result
 
     if not user or user.role.value != "admin":
         raise HTTPException(
@@ -159,7 +187,14 @@ async def get_cost_by_user(
     """
     # Verify admin access
     from src.api.middleware import APIKeyAuth
-    user, api_key = await APIKeyAuth.verify_api_key(request)
+
+    result = await APIKeyAuth.verify_api_key(request)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required",
+        )
+    user, api_key = result
 
     if not user or user.role.value != "admin":
         raise HTTPException(

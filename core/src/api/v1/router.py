@@ -30,8 +30,20 @@ async def get_router_status(request: Request):
     Returns the current state of the routing switch, including
     any pending switches and cooldown information.
     """
-    from src.api.middleware import require_admin
-    await require_admin(request.get_route_handler())(request)
+    from src.api.middleware import APIKeyAuth
+    # Verify admin access
+    result = await APIKeyAuth.verify_api_key(request)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required",
+        )
+    user, api_key = result
+    if not user or user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
 
     try:
         status_info = await orchestrator.get_status()
@@ -64,9 +76,16 @@ async def toggle_router(
     """
     # Verify admin access
     from src.api.middleware import APIKeyAuth
-    user, api_key = await APIKeyAuth.verify_api_key(http_request)
 
-    if not user or user.role.value != "admin":
+    result = await APIKeyAuth.verify_api_key(http_request)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required",
+        )
+    user, api_key = result
+
+    if not user or user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
@@ -121,8 +140,20 @@ async def get_router_history(
 
     Returns the history of routing switch toggles.
     """
-    from src.api.middleware import require_admin
-    await require_admin(request.get_route_handler())(request)
+    from src.api.middleware import APIKeyAuth
+    # Verify admin access
+    result = await APIKeyAuth.verify_api_key(request)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required",
+        )
+    user, api_key = result
+    if not user or user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
 
     try:
         history = await orchestrator.get_history(limit=limit)
@@ -142,8 +173,20 @@ async def get_router_metrics(request: Request):
 
     Returns statistics about router performance and usage.
     """
-    from src.api.middleware import require_admin
-    await require_admin(request.get_route_handler())(request)
+    from src.api.middleware import APIKeyAuth
+    # Verify admin access
+    result = await APIKeyAuth.verify_api_key(request)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required",
+        )
+    user, api_key = result
+    if not user or user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
 
     try:
         metrics = await orchestrator.get_metrics()
@@ -165,9 +208,16 @@ async def list_routing_rules(http_request: Request):
     """
     # Verify admin access
     from src.api.middleware import APIKeyAuth
-    user, api_key = await APIKeyAuth.verify_api_key(http_request)
 
-    if not user or user.role.value != "admin":
+    result = await APIKeyAuth.verify_api_key(http_request)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required",
+        )
+    user, api_key = result
+
+    if not user or user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
@@ -217,9 +267,16 @@ async def create_routing_rule(
     """
     # Verify admin access
     from src.api.middleware import APIKeyAuth
-    user, api_key = await APIKeyAuth.verify_api_key(http_request)
 
-    if not user or user.role.value != "admin":
+    result = await APIKeyAuth.verify_api_key(http_request)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required",
+        )
+    user, api_key = result
+
+    if not user or user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
