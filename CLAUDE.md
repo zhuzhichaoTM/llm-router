@@ -1,1 +1,2 @@
-不需要读取llm-router-requirements-analysis.md llm-router-value-roadmap.md 这个两个文档
+通过uv方式执行python相关指令
+通过docker compose启动容器
