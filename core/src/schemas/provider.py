@@ -69,6 +69,8 @@ class ProviderModelBase(BaseModel):
     input_price_per_1k: float = Field(..., ge=0, description="Input price per 1K tokens")
     output_price_per_1k: float = Field(..., ge=0, description="Output price per 1K tokens")
     is_active: bool = Field(default=True, description="Whether model is active")
+    priority: int = Field(default=100, description="Model priority for routing")
+    weight: int = Field(default=100, ge=1, description="Load balance weight")
 
 
 class ProviderModelCreate(ProviderModelBase):
@@ -83,6 +85,8 @@ class ProviderModelUpdate(BaseModel):
     input_price_per_1k: Optional[float] = Field(None, ge=0)
     output_price_per_1k: Optional[float] = Field(None, ge=0)
     is_active: Optional[bool] = None
+    priority: Optional[int] = Field(None, description="Model priority for routing")
+    weight: Optional[int] = Field(None, ge=1, description="Load balance weight")
 
 
 class ProviderModelResponse(ProviderModelBase):

@@ -61,6 +61,7 @@ class ProviderAgent:
         self._providers: Dict[int, IProvider] = {}
         self._metrics_cache: Dict[int, ProviderMetrics] = {}
         self._last_check_time: Dict[int, datetime] = {}
+        self._performance_cache: Dict[str, Dict[str, Any]] = {}
 
     async def initialize(self) -> None:
         """Initialize the provider agent."""
@@ -107,6 +108,15 @@ class ProviderAgent:
                 "anthropic",
                 api_key=api_key,
                 base_url=provider.base_url,
+                timeout=provider.timeout,
+            )
+        elif provider_type == "custom":
+            # Custom providers use OpenAI-compatible API
+            from src.providers.openai import OpenAIProvider
+            return OpenAIProvider(
+                api_key=api_key,
+                base_url=provider.base_url,
+                organization=provider.organization,
                 timeout=provider.timeout,
             )
         else:
@@ -197,7 +207,7 @@ class ProviderAgent:
 
         return results
 
-    async def health_check(self, provider_id: int) -> Optional[HealthStatus]:
+    async def health_check(self, provider_id: int) -> HealthStatus:
         """
         Perform health check on a specific provider.
 
@@ -205,13 +215,91 @@ class ProviderAgent:
             provider_id: Provider ID to check
 
         Returns:
-            Optional[HealthStatus]: Health status if provider exists
+            HealthStatus: Health status with detailed error information
         """
+        # Try to get provider from cache
         provider = self._providers.get(provider_id)
-        if not provider:
-            return None
 
-        return await provider.health_check()
+        # If not in cache, try to load from database
+        if not provider:
+            from sqlalchemy import select
+
+            try:
+                provider_record = await SessionManager.execute_get_one(
+                    select(Provider).where(Provider.id == provider_id)
+                )
+
+                if not provider_record:
+                    return HealthStatus(
+                        is_healthy=False,
+                        latency_ms=None,
+                        error_message=f"Provider ID {provider_id} not found in database"
+                    )
+
+                # Try to create provider instance
+                provider = await self._create_provider_instance(provider_record)
+                self._providers[provider_id] = provider
+
+            except Exception as e:
+                logger.error(f"Failed to load provider {provider_id}: {e}")
+                return HealthStatus(
+                    is_healthy=False,
+                    latency_ms=None,
+                    error_message=f"Failed to initialize provider: {str(e)}"
+                )
+
+        # Perform health check
+        try:
+            health = await provider.health_check()
+
+            # Update metrics cache
+            if health.is_healthy:
+                self._metrics_cache[provider_id] = ProviderMetrics(
+                    provider_id=provider_id,
+                    provider_name=f"Provider {provider_id}",
+                    is_healthy=True,
+                    latency_ms=health.latency_ms,
+                    success_rate=1.0,
+                    total_requests=0,
+                    failed_requests=0,
+                    last_error=None,
+                )
+
+            # Update provider status in database
+            await self._update_provider_status(
+                provider_id,
+                health.is_healthy,
+                health.error_message,
+            )
+
+            return health
+
+        except Exception as e:
+            logger.error(f"Health check failed for provider {provider_id}: {e}")
+            error_msg = str(e)
+
+            # Provide more helpful error messages
+            if "timeout" in error_msg.lower():
+                error_msg = f"Connection timeout: Provider did not respond within the expected time"
+            elif "connection" in error_msg.lower():
+                error_msg = f"Connection refused: Unable to connect to the provider API"
+            elif "authentication" in error_msg.lower() or "unauthorized" in error_msg.lower():
+                error_msg = f"Authentication failed: Invalid API key or credentials"
+            elif "not found" in error_msg.lower() or "404" in error_msg:
+                error_msg = f"API endpoint not found: Check the base URL configuration"
+            elif "rate limit" in error_msg.lower() or "429" in error_msg:
+                error_msg = f"Rate limit exceeded: Too many requests, please try again later"
+            else:
+                error_msg = f"Health check failed: {error_msg}"
+
+            # Update provider status as unhealthy
+            await self._update_provider_status(provider_id, False, error_msg)
+
+            return HealthStatus(
+                is_healthy=False,
+                latency_ms=None,
+                error_message=error_msg
+            )
 
     async def _get_provider_performance(self, provider_id: int) -> Dict[str, Any]:
         """
