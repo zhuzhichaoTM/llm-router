@@ -1,8 +1,8 @@
 import React from 'react';
-import { Card, Table, Button, Space, Modal, Form, Input, Select, Tag, Switch, Row, Col, message, Typography } from 'antd';
+import { Card, Table, Button, Space, Modal, Form, Input, Select, Tag, Switch, Row, Col, message, Typography, InputNumber } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, PoweroffOutlined } from '@ant-design/icons';
-import { routerApi } from '@/api/client';
-import type { SwitchStatus, RoutingRule, SwitchHistoryEntry } from '@/types';
+import { routerApi, providerApi } from '@/api/client';
+import type { SwitchStatus, RoutingRule, SwitchHistoryEntry, Provider, ProviderModel } from '@/types';
 
 const { Title } = Typography;
 
@@ -30,18 +30,46 @@ export default function Routing() {
   const [editingRule, setEditingRule] = React.useState<Partial<RoutingRule> | null>(null);
   const [form] = Form.useForm();
 
+  // 模型配置相关状态
+  const [providers, setProviders] = React.useState<Provider[]>([]);
+  const [models, setModels] = React.useState<Array<ProviderModel & { providerName: string; providerId: number }>>([]);
+  const [modelModalVisible, setModelModalVisible] = React.useState(false);
+  const [editingModel, setEditingModel] = React.useState<Partial<typeof models[0]> | null>(null);
+  const [modelForm] = Form.useForm();
+
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [statusData, historyData, rulesData] = await Promise.all([
+      const [statusData, historyData, rulesData, providersData] = await Promise.all([
         routerApi.getStatus(),
         routerApi.getHistory(),
         routerApi.listRules(),
+        providerApi.list(),
       ]);
 
       if (statusData) setSwitchStatus(statusData);
       if (historyData) setHistory(historyData);
       if (rulesData) setRules(rulesData.rules || []);
+      if (providersData) {
+        setProviders(providersData);
+        // 获取所有模型并合并provider信息
+        const allModels: Array<ProviderModel & { providerName: string; providerId: number }> = [];
+        for (const provider of providersData) {
+          try {
+            const providerModels = await providerApi.listModels?.(provider.id);
+            if (providerModels) {
+              allModels.push(...providerModels.map(m => ({
+                ...m,
+                providerName: provider.name,
+                providerId: provider.id,
+              })));
+            }
+          } catch (e) {
+            // 忽略获取模型失败的情况
+          }
+        }
+        setModels(allModels);
+      }
     } catch (error: any) {
       message.error('获取路由数据失败');
     } finally {
@@ -99,6 +127,33 @@ export default function Routing() {
       }
       setModalVisible(false);
       await fetchData();
+    } catch (error: any) {
+      message.error('保存失败');
+    }
+  };
+
+  const handleEditModel = (model: typeof models[0]) => {
+    setEditingModel(model);
+    setModelModalVisible(true);
+    modelForm.setFieldsValue({
+      priority: model.priority,
+      weight: model.weight,
+    });
+  };
+
+  const handleModelModalOk = async () => {
+    try {
+      const values = await modelForm.validateFields();
+      if (editingModel && editingModel.id) {
+        // 更新模型的priority和weight
+        await providerApi.updateModel?.(editingModel.providerId, editingModel.id, {
+          priority: values.priority,
+          weight: values.weight,
+        });
+        message.success('模型配置更新成功');
+        await fetchData();
+      }
+      setModelModalVisible(false);
     } catch (error: any) {
       message.error('保存失败');
     }
@@ -233,6 +288,70 @@ export default function Routing() {
     },
   ];
 
+  const modelColumns = [
+    {
+      title: '模型ID',
+      dataIndex: 'model_id',
+      key: 'model_id',
+    },
+    {
+      title: '模型名称',
+      dataIndex: 'name',
+      key: 'name',
+    },
+    {
+      title: 'Provider',
+      dataIndex: 'providerName',
+      key: 'providerName',
+    },
+    {
+      title: '优先级',
+      dataIndex: 'priority',
+      key: 'priority',
+      width: 100,
+      render: (priority: number) => (
+        <Tag color={priority >= 100 ? 'green' : priority >= 50 ? 'orange' : 'red'}>
+          {priority}
+        </Tag>
+      ),
+    },
+    {
+      title: '负载权重',
+      dataIndex: 'weight',
+      key: 'weight',
+      width: 100,
+      render: (weight: number) => (
+        <Tag color="blue">{weight}</Tag>
+      ),
+    },
+    {
+      title: '状态',
+      dataIndex: 'is_active',
+      key: 'is_active',
+      width: 100,
+      render: (active: boolean) => (
+        <Tag color={active ? 'green' : 'default'}>
+          {active ? '启用' : '禁用'}
+        </Tag>
+      ),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 120,
+      render: (_: any, record: typeof models[0]) => (
+        <Button
+          type="link"
+          size="small"
+          icon={<EditOutlined />}
+          onClick={() => handleEditModel(record)}
+        >
+          配置
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <div style={pageStyle}>
       <Title level={2}>路由配置</Title>
@@ -264,6 +383,28 @@ export default function Routing() {
             {switchStatus?.enabled ? '禁用智能路由' : '启用智能路由'}
           </Button>
         </div>
+      </Card>
+
+      {/* Model Priority Configuration */}
+      <Card
+        title="模型优先级与负载均衡配置"
+        extra={
+          <span style={{ fontSize: 13, color: '#8c8c8c' }}>
+            配置各模型的优先级和负载均衡权重
+          </span>
+        }
+        style={cardStyle}
+      >
+        <Table
+          columns={modelColumns}
+          dataSource={models}
+          rowKey="id"
+          loading={loading}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+          }}
+        />
       </Card>
 
       {/* Routing Rules */}
@@ -395,6 +536,40 @@ export default function Routing() {
             initialValue={true}
           >
             <Switch />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Model Configuration Modal */}
+      <Modal
+        title="配置模型优先级与负载均衡"
+        open={modelModalVisible}
+        onOk={handleModelModalOk}
+        onCancel={() => setModelModalVisible(false)}
+        width={500}
+      >
+        <Form form={modelForm} layout="vertical">
+          <div style={{ marginBottom: 16, padding: 12, background: '#f5f5f5', borderRadius: 4 }}>
+            <div><strong>模型：</strong>{editingModel?.name}</div>
+            <div><strong>Provider：</strong>{editingModel?.providerName}</div>
+          </div>
+
+          <Form.Item
+            name="priority"
+            label="优先级"
+            rules={[{ required: true, message: '请输入优先级' }]}
+            extra="数字越大优先级越高，用于选择使用哪个模型"
+          >
+            <InputNumber min={0} max={999} style={{ width: '100%' }} placeholder="100" />
+          </Form.Item>
+
+          <Form.Item
+            name="weight"
+            label="负载均衡权重"
+            rules={[{ required: true, message: '请输入权重' }]}
+            extra="用于同一优先级模型之间的负载均衡分配"
+          >
+            <InputNumber min={0} max={1000} style={{ width: '100%' }} placeholder="100" />
           </Form.Item>
         </Form>
       </Modal>

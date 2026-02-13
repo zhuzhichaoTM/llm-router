@@ -25,7 +25,7 @@ const menuItems: MenuProps['items'] = [
   {
     key: '/providers',
     icon: <SettingOutlined />,
-    label: <Link to="/providers">Provider 配置</Link>,
+    label: <Link to="/providers">模型供应商</Link>,
   },
   {
     key: '/routing',

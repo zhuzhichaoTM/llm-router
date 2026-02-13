@@ -103,11 +103,16 @@ class RoutingAgent:
                 provider_instance = self._create_provider_instance(provider)
                 self._providers_cache[provider.id] = provider_instance
 
-                # Cache models
+                # Cache models - fetch separately to avoid lazy loading
+                models = await SessionManager.execute_select(
+                    select(ProviderModel).where(
+                        ProviderModel.provider_id == provider.id,
+                        ProviderModel.is_active == True
+                    )
+                )
                 self._provider_models_cache[provider.id] = {
                     model.model_id: model.id
-                    for model in provider.models
-                    if model.is_active
+                    for model in models
                 }
 
             except Exception:
@@ -157,8 +162,7 @@ class RoutingAgent:
         Returns:
             RouteDecision: The routing decision
         """
-        # Get routing rules
-        rules = await self._get_active_rules()
+        from src.agents.gateway_orchestrator import orchestrator
 
         # Check if fixed provider/model is requested
         if preferred_provider and preferred_model:
@@ -170,12 +174,16 @@ class RoutingAgent:
                 reason="Fixed provider/model requested",
             )
 
-        # Try rule-based routing
-        decision = await self._rule_based_routing(request, rules)
-        if decision:
-            return decision
+        # Check if router switch is enabled
+        switch_status = await orchestrator.get_status()
+        if switch_status.enabled:
+            # Router is ON: try rule-based routing
+            rules = await self._get_active_rules()
+            decision = await self._rule_based_routing(request, rules)
+            if decision:
+                return decision
 
-        # Default: weighted round robin
+        # Router is OFF or no rules matched: use model priority and load balancing
         return await self._weighted_round_robin_routing()
 
     async def _rule_based_routing(
@@ -244,55 +252,79 @@ class RoutingAgent:
 
     async def _weighted_round_robin_routing(self) -> RouteDecision:
         """
-        Perform weighted round robin routing.
+        Perform weighted round robin routing using model-level priority and weight.
 
         Returns:
             RouteDecision: The routing decision
         """
         from sqlalchemy import select
 
+        # Query providers and models separately to avoid tuple unpacking issues
         providers = await SessionManager.execute_select(
             select(Provider).where(Provider.status == ProviderStatus.ACTIVE)
         )
 
-        if not providers:
-            raise RuntimeError("No active providers available")
+        models = await SessionManager.execute_select(
+            select(ProviderModel).where(ProviderModel.is_active == True)
+        )
 
-        # Calculate total weight
-        total_weight = sum(p.weight for p in providers)
+        if not models:
+            raise RuntimeError("No active models available")
 
-        # Find provider based on round robin with weight
+        # Create a map of provider_id to provider
+        provider_map = {p.id: p for p in providers}
+
+        # Build list of (model, provider) tuples
+        model_list = []
+        for model in models:
+            provider = provider_map.get(model.provider_id)
+            if provider:
+                model_list.append((model, provider))
+
+        if not model_list:
+            raise RuntimeError("No active models available")
+
+        # Sort by priority (higher first), then by weight
+        model_list.sort(key=lambda x: (x[0].priority, x[0].weight), reverse=True)
+
+        # Group models by priority level
+        priority_groups = {}
+        for model, provider in model_list:
+            if model.priority not in priority_groups:
+                priority_groups[model.priority] = []
+            priority_groups[model.priority].append((model, provider))
+
+        # Use the highest priority group
+        highest_priority = max(priority_groups.keys())
+        candidate_models = priority_groups[highest_priority]
+
+        # Calculate total weight for this priority level
+        total_weight = sum(m.weight for m, _ in candidate_models)
+
+        # Find model based on weighted round robin
         weighted_index = self._round_robin_index % total_weight
         current_weight = 0
 
+        selected_model = None
         selected_provider = None
-        for provider in providers:
-            current_weight += provider.weight
+        for model, provider in candidate_models:
+            current_weight += model.weight
             if weighted_index < current_weight:
+                selected_model = model
                 selected_provider = provider
                 break
 
-        if not selected_provider:
-            selected_provider = providers[0]
+        if selected_model is None:
+            selected_model, selected_provider = candidate_models[0]
 
         self._round_robin_index += 1
 
-        # Get default model for provider
-        model_id = None
-        for model in selected_provider.models:
-            if model.is_active:
-                model_id = model.model_id
-                break
-
-        if not model_id:
-            model_id = settings.default_model
-
         return RouteDecision(
             provider_id=selected_provider.id,
-            model_id=model_id,
+            model_id=selected_model.model_id,
             rule_id=None,
             method=RoutingMethod.WEIGHTED_ROUND_ROBIN.value,
-            reason="Weighted round robin selection",
+            reason=f"Weighted round robin (priority={selected_model.priority}, weight={selected_model.weight})",
         )
 
     async def execute(
@@ -533,27 +565,35 @@ class RoutingAgent:
         """Get list of all available models."""
         from sqlalchemy import select
 
-        models = await SessionManager.execute_select(
-            select(Provider, ProviderModel).join(
-                ProviderModel,
-                Provider.id == ProviderModel.provider_id
-            ).where(
-                Provider.status == ProviderStatus.ACTIVE,
-                ProviderModel.is_active == True,
-            )
+        # Query providers and models separately to avoid lazy loading issues
+        providers = await SessionManager.execute_select(
+            select(Provider).where(Provider.status == ProviderStatus.ACTIVE)
         )
 
+        models = await SessionManager.execute_select(
+            select(ProviderModel).where(ProviderModel.is_active == True)
+        )
+
+        # Create a map of provider_id to provider
+        provider_map = {p.id: p for p in providers}
+
         result = []
-        for provider, model in models:
-            result.append({
-                "model_id": model.model_id,
-                "name": model.name,
-                "provider_id": provider.id,
-                "provider_type": provider.provider_type.value,
-                "context_window": model.context_window,
-                "input_price_per_1k": float(model.input_price_per_1k),
-                "output_price_per_1k": float(model.output_price_per_1k),
-            })
+        for model in models:
+            provider = provider_map.get(model.provider_id)
+            if provider:
+                result.append({
+                    "id": model.model_id,
+                    "model_id": model.model_id,
+                    "name": model.name,
+                    "provider": provider.provider_type.value,
+                    "provider_id": provider.id,
+                    "provider_type": provider.provider_type.value,
+                    "context_window": model.context_window,
+                    "input_price_per_1k": float(model.input_price_per_1k),
+                    "output_price_per_1k": float(model.output_price_per_1k),
+                    "priority": model.priority,
+                    "weight": model.weight,
+                })
 
         return result
 

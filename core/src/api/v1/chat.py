@@ -101,9 +101,11 @@ async def chat_completions(
             )
 
         # Record cost
+        from src.utils.encryption import generate_session_id
+        request_id = generate_session_id()
         await cost_agent.record_cost(
-            session_id="",  # Already recorded by routing_agent
-            request_id="",  # Already recorded by routing_agent
+            session_id="",
+            request_id=request_id,
             user_id=user.id if user.id else None,
             api_key_id=api_key.id if api_key else None,
             provider_id=result.provider_id,
@@ -116,10 +118,12 @@ async def chat_completions(
         )
 
         # Return response
+        import time
+        current_time = int(time.time())
         return ChatCompletionResponse(
-            id=f"chatcmpl-{result.provider_id}-{int(http_request.state.get('start', 0))}",
+            id=f"chatcmpl-{result.provider_id}-{current_time}",
             object="chat.completion",
-            created=int(http_request.state.get('start', 0)),
+            created=current_time,
             model=result.model_id,
             choices=[
                 {

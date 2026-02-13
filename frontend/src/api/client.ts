@@ -269,6 +269,30 @@ export const providerApi = {
     return response.data;
   },
 
+  deleteModel: async (providerId: number, modelId: number) => {
+    await apiClient.delete<void>(
+      `/api/v1/providers/${providerId}/models/${modelId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${getAdminApiKey()}`,
+        },
+      }
+    );
+  },
+
+  updateModel: async (providerId: number, modelId: number, model: Partial<ProviderModel>) => {
+    const response = await apiClient.put<ProviderModel>(
+      `/api/v1/providers/${providerId}/models/${modelId}`,
+      model,
+      {
+        headers: {
+          'Authorization': `Bearer ${getAdminApiKey()}`,
+        },
+      }
+    );
+    return response.data;
+  },
+
   update: async (id: number, provider: Partial<Provider>) => {
     const response = await apiClient.put<Provider>(
       `/api/v1/providers/${id}`,
@@ -292,6 +316,28 @@ export const providerApi = {
       }
     );
     return response.data;
+  },
+
+  getAllModels: async () => {
+    const providers = await providerApi.list();
+    const allModels: Array<ProviderModel & { providerName: string; providerType: string; providerId: number }> = [];
+
+    for (const provider of providers) {
+      try {
+        const models = await providerApi.listModels(provider.id);
+        if (models) {
+          allModels.push(...models.map(m => ({
+            ...m,
+            providerName: provider.name,
+            providerType: provider.provider_type,
+            providerId: provider.id,
+          })));
+        }
+      } catch (error) {
+        console.error(`Failed to fetch models for provider ${provider.id}:`, error);
+      }
+    }
+    return allModels;
   },
 };
 

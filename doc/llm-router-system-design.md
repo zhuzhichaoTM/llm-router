@@ -3419,3 +3419,195 @@ Fields:
 4. **可执行性**：实现方案具备足够的细节，可以直接用于开发
 
 ---
+
+---
+
+## 七、架构改进：功能分离优化（2024年更新）
+
+### 7.1 改进背景
+
+为优化系统架构和用户体验，对前端功能模块进行了重新划分：
+
+- **原设计**：模型接入页面包含API连接配置和优先级/负载均衡配置
+- **问题**：功能职责不清，模型接入和路由策略混合在一起
+- **新设计**：功能分离，各司其职
+
+### 7.2 功能模块划分
+
+#### 7.2.1 模型接入页面（Provider配置）
+
+**职责**：负责大模型API的接入配置
+
+**功能范围**：
+- 添加/编辑/删除模型Provider
+- 配置API连接信息（Base URL、API Key、Region等）
+- 配置连接参数（超时时间、重试次数等）
+- 查看Provider健康状态
+
+**移除的功能**：
+- ~~优先级配置~~ → 迁移到路由配置页面
+- ~~负载均衡权重~~ → 迁移到路由配置页面
+
+**保留的字段**：
+- name: Provider名称
+- provider_type: Provider类型（openai/anthropic/custom）
+- base_url: API基础URL
+- api_key: API密钥（加密存储）
+- region: 区域
+- organization: 组织ID
+- timeout: 超时时间（秒）
+- max_retries: 最大重试次数
+- status: 状态（active/inactive/unhealthy）
+
+#### 7.2.2 路由配置页面
+
+**职责**：负责智能路由策略和模型选择配置
+
+**功能范围**：
+1. **路由开关控制**
+   - 启用/禁用智能路由
+   - 查看路由状态和历史
+
+2. **路由规则管理**
+   - 创建/编辑/删除路由规则
+   - 配置匹配条件（正则表达式、复杂度等）
+   - 配置路由动作（使用特定模型/Provider）
+
+3. **模型优先级与负载均衡配置**（新增）
+   - 为每个模型配置优先级（priority）
+   - 为每个模型配置负载均衡权重（weight）
+   - 可视化展示所有模型的配置状态
+
+### 7.3 前端实现改动
+
+#### 7.3.1 模型接入页面（`/frontend/src/pages/Providers/index.tsx`）
+
+**移除的字段**：
+```typescript
+// 表单中移除
+- priority: 优先级
+- weight: 负载均衡权重
+
+// 表格列中移除
+- 优先级列
+- 权重列
+
+// 初始化时移除
+setEditingProvider({ status: 'active' }); // 不再包含 priority 和 weight
+```
+
+**保留的功能**：
+- Provider基本信息配置
+- 健康检查
+- API连接测试
+
+#### 7.3.2 路由配置页面（`/frontend/src/pages/Routing/index.tsx`）
+
+**新增的功能模块**：
+```typescript
+// 新增状态
+const [models, setModels] = React.useState<Array<ProviderModel & { 
+  providerName: string; 
+  providerPriority: number; 
+  providerWeight: number 
+}>>([]);
+const [modelModalVisible, setModelModalVisible] = React.useState(false);
+const [editingModel, setEditingModel] = React.useState<Partial<typeof models[0]> | null>(null);
+const [modelForm] = Form.useForm();
+
+// 新增函数
+const handleEditModel = (model: typeof models[0]) => { ... };
+const handleModelModalOk = async () => { ... };
+
+// 新增表格列
+const modelColumns = [
+  { title: '模型ID', dataIndex: 'model_id' },
+  { title: '模型名称', dataIndex: 'name' },
+  { title: 'Provider', dataIndex: 'providerName' },
+  { title: '优先级', dataIndex: 'providerPriority' },
+  { title: '负载权重', dataIndex: 'providerWeight' },
+  { title: '操作', key: 'action' }
+];
+```
+
+**新增的UI组件**：
+1. 模型优先级与负载均衡配置卡片
+2. 模型配置模态框（配置优先级和权重）
+
+### 7.4 后端API说明
+
+**使用的现有API**：
+- `GET /api/v1/providers` - 获取Provider列表（包含priority和weight）
+- `PUT /api/v1/providers/{id}` - 更新Provider配置（可更新priority和weight）
+- `GET /api/v1/providers/{id}/models` - 获取Provider的模型列表
+
+**数据流**：
+1. 路由配置页面调用Provider API获取所有Provider
+2. 遍历每个Provider获取其模型列表
+3. 合并Provider的priority和weight到模型数据中
+4. 在表格中展示
+5. 用户点击"配置"按钮打开模态框
+6. 提交时调用Provider Update API更新priority和weight
+
+### 7.5 用户体验改进
+
+#### 改进前：
+- 用户需要在模型接入页面配置优先级和权重
+- 概念混淆：不知道这些参数用于什么
+- 配置分散：路由规则和模型优先级在不同位置
+
+#### 改进后：
+- 模型接入页面专注于API连接配置
+- 路由配置页面统一管理所有路由相关配置
+- 功能职责清晰，用户更容易理解
+- 配置集中，管理更方便
+
+### 7.6 数据库schema说明
+
+**Provider表**（保持不变）：
+```sql
+CREATE TABLE providers (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(200) NOT NULL,
+    provider_type VARCHAR(50) NOT NULL,
+    api_key_encrypted TEXT,
+    base_url VARCHAR(500) NOT NULL,
+    region VARCHAR(100),
+    organization VARCHAR(200),
+    timeout INTEGER DEFAULT 60,
+    max_retries INTEGER DEFAULT 3,
+    status VARCHAR(20) DEFAULT 'active',
+    priority INTEGER DEFAULT 100,  -- 用于路由选择
+    weight INTEGER DEFAULT 100,    -- 用于负载均衡
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+**注意**：
+- `priority` 和 `weight` 字段保留在Provider表中
+- 前端通过路由配置页面来管理这些字段
+- 模型接入页面不再显示这些字段
+
+### 7.7 文件修改清单
+
+**前端文件**：
+1. `/frontend/src/pages/Providers/index.tsx` - 移除priority和weight相关代码
+2. `/frontend/src/pages/Routing/index.tsx` - 添加模型优先级配置功能
+3. `/frontend/src/components/Layout/index.tsx` - 更新侧边栏菜单文字
+
+**后端文件**：
+- 无需修改，使用现有API
+
+**文档文件**：
+1. `/doc/llm-router-system-design.md` - 添加本节内容
+
+---
+
+## 八、版本历史
+
+| 版本 | 日期 | 修改内容 | 作者 |
+|------|------|----------|------|
+| 1.0 | 2024-01 | 初始版本 | System |
+| 1.1 | 2024-02 | 功能分离优化：模型接入与路由配置分离 | System |
+

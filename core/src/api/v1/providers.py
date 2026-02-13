@@ -150,9 +150,25 @@ async def create_provider(
         )
     except Exception as e:
         logger.error(f"Create provider error: {str(e)}")
+
+        # Provide user-friendly error messages
+        error_msg = str(e)
+
+        if "duplicate key" in error_msg.lower() or "unique constraint" in error_msg.lower():
+            if "name" in error_msg.lower():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="供应商名称已存在，请使用不同的名称",
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="该配置已存在，请检查输入信息",
+                )
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
+            detail=f"创建供应商失败: {error_msg}",
         )
 
 
@@ -226,6 +242,7 @@ async def health_check(provider_id: int, request: Request):
     Perform health check on a provider.
 
     Checks if the provider is reachable and responsive.
+    Returns detailed error information when the provider is unavailable.
     """
     # Verify admin access
     from src.api.middleware import APIKeyAuth
@@ -258,16 +275,8 @@ async def health_check(provider_id: int, request: Request):
                 detail="Provider not found",
             )
 
-        # Get provider instance from routing agent
-        provider_instance = routing_agent._providers_cache.get(provider_id)
-
-        if not provider_instance:
-            return HealthCheckResponse(
-                healthy=False,
-                providers=[],
-            )
-
-        health = await provider_instance.health_check()
+        # Use provider_agent for health check with enhanced error handling
+        health = await provider_agent.health_check(provider_id)
 
         return HealthCheckResponse(
             healthy=health.is_healthy,
@@ -333,6 +342,8 @@ async def list_provider_models(provider_id: int, request: Request):
                 input_price_per_1k=float(m.input_price_per_1k),
                 output_price_per_1k=float(m.output_price_per_1k),
                 is_active=m.is_active,
+                priority=m.priority,
+                weight=m.weight,
                 created_at=m.created_at.isoformat(),
                 updated_at=m.updated_at.isoformat(),
             )
@@ -386,6 +397,8 @@ async def create_provider_model(
             input_price_per_1k=Decimal(str(request.input_price_per_1k)),
             output_price_per_1k=Decimal(str(request.output_price_per_1k)),
             is_active=request.is_active,
+            priority=request.priority,
+            weight=request.weight,
         )
 
         result = await SessionManager.execute_insert(model)
@@ -399,6 +412,8 @@ async def create_provider_model(
             input_price_per_1k=float(result.input_price_per_1k),
             output_price_per_1k=float(result.output_price_per_1k),
             is_active=result.is_active,
+            priority=result.priority,
+            weight=result.weight,
             created_at=result.created_at.isoformat(),
             updated_at=result.updated_at.isoformat(),
         )
@@ -439,7 +454,7 @@ async def update_provider(
         )
 
     try:
-        from sqlalchemy import update
+        from sqlalchemy import update, select
         from src.db.session import SessionManager
         from src.models.provider import ProviderType
 
@@ -508,9 +523,25 @@ async def update_provider(
         raise
     except Exception as e:
         logger.error(f"Update provider error: {str(e)}")
+
+        # Provide user-friendly error messages
+        error_msg = str(e)
+
+        if "duplicate key" in error_msg.lower() or "unique constraint" in error_msg.lower():
+            if "name" in error_msg.lower():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="供应商名称已存在，请使用不同的名称",
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="该配置已存在，请检查输入信息",
+                )
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
+            detail=f"更新供应商失败: {error_msg}",
         )
 
 
@@ -542,7 +573,7 @@ async def delete_provider(
         )
 
     try:
-        from sqlalchemy import delete
+        from sqlalchemy import delete, select
         from src.db.session import SessionManager
 
         # Check if provider exists
@@ -556,7 +587,12 @@ async def delete_provider(
                 detail="Provider not found",
             )
 
-        # Delete provider (cascade will delete models)
+        # Delete associated models first
+        await SessionManager.execute_delete(
+            delete(ProviderModel).where(ProviderModel.provider_id == provider_id)
+        )
+
+        # Delete provider
         await SessionManager.execute_delete(
             delete(Provider).where(Provider.id == provider_id)
         )
@@ -579,7 +615,7 @@ async def delete_provider(
 @router.put("/{provider_id}/models/{model_id}", response_model=ProviderModelResponse)
 async def update_provider_model(
     provider_id: int,
-    model_id: str,
+    model_id: int,
     request: ProviderModelUpdate,
     http_request: Request,
 ):
@@ -587,6 +623,7 @@ async def update_provider_model(
     Update an existing provider model.
 
     Updates model configuration.
+    model_id is the database ID of the model record (integer).
     """
     # Verify admin access
     from src.api.middleware import APIKeyAuth
@@ -606,7 +643,7 @@ async def update_provider_model(
         )
 
     try:
-        from sqlalchemy import update
+        from sqlalchemy import update, select
         from src.db.session import SessionManager
         from decimal import Decimal
 
@@ -622,6 +659,10 @@ async def update_provider_model(
             update_values["output_price_per_1k"] = Decimal(str(request.output_price_per_1k))
         if request.is_active is not None:
             update_values["is_active"] = request.is_active
+        if request.priority is not None:
+            update_values["priority"] = request.priority
+        if request.weight is not None:
+            update_values["weight"] = request.weight
 
         # Update model
         await SessionManager.execute_update(
@@ -653,6 +694,8 @@ async def update_provider_model(
             input_price_per_1k=float(model.input_price_per_1k),
             output_price_per_1k=float(model.output_price_per_1k),
             is_active=model.is_active,
+            priority=model.priority,
+            weight=model.weight,
             created_at=model.created_at.isoformat(),
             updated_at=model.updated_at.isoformat(),
         )
@@ -669,13 +712,14 @@ async def update_provider_model(
 @router.delete("/{provider_id}/models/{model_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_provider_model(
     provider_id: int,
-    model_id: str,
+    model_id: int,
     http_request: Request,
 ):
     """
     Delete a provider model.
 
     Removes a model from a provider.
+    model_id is the database id of the model record.
     """
     # Verify admin access
     from src.api.middleware import APIKeyAuth
@@ -695,7 +739,7 @@ async def delete_provider_model(
         )
 
     try:
-        from sqlalchemy import delete
+        from sqlalchemy import delete, select
         from src.db.session import SessionManager
 
         # Check if model exists

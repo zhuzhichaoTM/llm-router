@@ -165,6 +165,8 @@ export interface ProviderModel {
   input_price_per_1k: number;
   output_price_per_1k: number;
   is_active: boolean;
+  priority: number;
+  weight: number;
   created_at: string;
   updated_at: string;
 }

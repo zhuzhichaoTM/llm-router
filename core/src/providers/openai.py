@@ -253,7 +253,12 @@ class OpenAIProvider(IProvider):
             raise ProviderError(f"Failed to get models: {str(e)}")
 
     async def health_check(self) -> HealthStatus:
-        """Check provider health."""
+        """
+        Check provider health with detailed error information.
+
+        Returns:
+            HealthStatus: Health status with detailed error messages if unhealthy
+        """
         client = self._get_client()
 
         start_time = time.time()
@@ -271,14 +276,63 @@ class OpenAIProvider(IProvider):
             )
 
         except HTTPStatusError as e:
+            status_code = e.response.status_code
+            error_msg = f"HTTP {status_code} error"
+
+            # Provide detailed error messages based on status code
+            if status_code == 401:
+                error_msg = "Authentication failed: Invalid API key"
+            elif status_code == 403:
+                error_msg = "Access forbidden: Check your API permissions"
+            elif status_code == 404:
+                error_msg = "API endpoint not found: Check the base URL configuration"
+            elif status_code == 429:
+                error_msg = "Rate limit exceeded: Too many requests"
+            elif status_code == 500:
+                error_msg = "OpenAI server error: Please try again later"
+            elif status_code == 503:
+                error_msg = "OpenAI service unavailable: Service is temporarily down"
+            else:
+                # Try to get more details from response
+                try:
+                    error_data = e.response.json().get("error", {})
+                    error_msg = error_data.get("message", f"HTTP {status_code} error")
+                except Exception:
+                    error_msg = f"HTTP {status_code} error"
+
             return HealthStatus(
                 is_healthy=False,
-                error_message=f"HTTP {e.response.status_code}",
+                error_message=error_msg,
             )
-        except (TimeoutException, RequestError) as e:
+
+        except TimeoutException:
             return HealthStatus(
                 is_healthy=False,
-                error_message=str(e),
+                error_message=f"Connection timeout: Provider did not respond within {self.timeout} seconds",
+            )
+
+        except RequestError as e:
+            error_msg = str(e)
+
+            # Provide more helpful error messages
+            if "connect" in error_msg.lower():
+                error_msg = "Connection refused: Unable to connect to the provider API. Check the base URL."
+            elif "resolve" in error_msg.lower():
+                error_msg = "DNS resolution failed: Unable to resolve the provider hostname"
+            elif "ssl" in error_msg.lower() or "certificate" in error_msg.lower():
+                error_msg = "SSL certificate error: Unable to establish secure connection"
+            else:
+                error_msg = f"Network error: {error_msg}"
+
+            return HealthStatus(
+                is_healthy=False,
+                error_message=error_msg,
+            )
+
+        except Exception as e:
+            return HealthStatus(
+                is_healthy=False,
+                error_message=f"Unexpected error: {str(e)}",
             )
 
     def calculate_cost(

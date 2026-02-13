@@ -58,3 +58,5 @@ class ModelInfo(BaseModel):
     context_window: int = Field(..., description="Context window size")
     input_price_per_1k: float = Field(..., description="Input price per 1K tokens")
     output_price_per_1k: float = Field(..., description="Output price per 1K tokens")
+    priority: int = Field(default=100, description="Model priority for routing")
+    weight: int = Field(default=100, description="Load balance weight")
